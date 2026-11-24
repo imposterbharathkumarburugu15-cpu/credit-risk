@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Credit Default Risk Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Credit Default Risk Dashboard</h1>
+    <p>Cost-sensitive decisions on the credit card default data. Change the costs and everything below recalculates.</p>
+  </header>
+
+  <main>
+    <!-- 1. cost matrix -->
+    <section class="card">
+      <h2>1. Cost matrix</h2>
+      <p class="hint">What each outcome costs the bank (in units of one false alarm). Thresholds are picked on the validation set, results are reported on the test set.</p>
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <tr><th></th><th>Predicted: no default</th><th>Predicted: default</th></tr>
+          <tr>
+            <th>Actually no default</th>
+            <td><label>True negative <input type="number" id="cost-tn" value="0" min="0" step="0.5"></label></td>
+            <td><label>False alarm (FP) <input type="number" id="cost-fp" value="1" min="0" step="0.5"></label></td>
+          </tr>
+          <tr>
+            <th>Actually defaults</th>
+            <td><label>Missed default (FN) <input type="number" id="cost-fn" value="5" min="0" step="0.5"></label></td>
+            <td><label>True positive <input type="number" id="cost-tp" value="0" min="0" step="0.5"></label></td>
+          </tr>
+        </table>
+        <button id="apply-costs" class="btn">Recalculate</button>
+      </div>
+    </section>
+
+    <!-- 2. model comparison -->
+    <section class="card">
+      <h2>2. Model comparison (test set)</h2>
+      <div class="table-scroll"><table id="compare-table" class="data"></table></div>
+      <p id="baselines" class="hint"></p>
+    </section>
+
+    <!-- 3. charts -->
+    <section class="grid-2">
+      <div class="card">
+        <h2>3. Threshold vs. total cost</h2>
+        <p class="hint">Validation set. The lowest point of each line is that model's chosen threshold.</p>
+        <div class="chart-box"><canvas id="cost-chart"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>4. Precision-recall curves</h2>
+        <p class="hint">Test set. The dashed line is the default rate, i.e. a model with no skill.</p>
+        <div class="chart-box"><canvas id="pr-chart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- 5. scorer -->
+    <section class="card">
+      <h2>5. Score a customer</h2>
+      <p class="hint">Scored by the XGBoost model using the cost-optimal threshold for the matrix above.</p>
+      <div class="sample-row">
+        Load an example:
+        <button class="btn small" data-sample="low">Low risk</button>
+        <button class="btn small" data-sample="medium">Medium risk</button>
+        <button class="btn small" data-sample="high">High risk</button>
+      </div>
+
+      <div class="scorer">
+        <div id="customer-form">
+          <div class="field-grid" id="profile-fields"></div>
+          <div class="table-scroll">
+            <table class="months" id="months-table"></table>
+          </div>
+          <p class="hint">Repayment status: -2 no use of credit, -1 paid in full, 0 minimum paid / revolving, 1-8 months behind.</p>
+          <button id="score-btn" class="btn primary">Score customer</button>
+        </div>
+
+        <div id="result" class="result empty">
+          <p>The result shows up here.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. rules -->
+    <section class="card">
+      <h2>6. Decision rules</h2>
+      <div class="policy">
+        <strong>Decision policy.</strong>
+        Let <em>t</em> be the cost-optimal threshold for the matrix above.
+        <ul>
+          <li>probability &ge; <em>t</em> &rarr; <b class="band-high">HIGH</b>: decline or manual review</li>
+          <li><em>t</em>/2 &le; probability &lt; <em>t</em> &rarr; <b class="band-medium">MEDIUM</b>: approve with a lower limit and monitoring</li>
+          <li>probability &lt; <em>t</em>/2 &rarr; <b class="band-low">LOW</b>: approve</li>
+        </ul>
+      </div>
+
+      <h3>Decision tree rules (depth 4)</h3>
+      <p class="hint">Each row is one path through the tree. Rows shaded red would be flagged at the tree's current threshold.</p>
+      <div class="table-scroll"><table id="tree-rules" class="data"></table></div>
+
+      <div class="grid-2">
+        <div>
+          <h3>Logistic regression: strongest coefficients</h3>
+          <p class="hint">On standardized inputs. Positive means higher default risk.</p>
+          <table id="logreg-table" class="data"></table>
+        </div>
+        <div>
+          <h3>XGBoost: most important features</h3>
+          <table id="xgb-table" class="data"></table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
