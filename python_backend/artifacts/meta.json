@@ -1,0 +1,354 @@
+{
+  "features": [
+    "LIMIT_BAL",
+    "SEX",
+    "EDUCATION",
+    "MARRIAGE",
+    "AGE",
+    "PAY_0",
+    "PAY_2",
+    "PAY_3",
+    "PAY_4",
+    "PAY_5",
+    "PAY_6",
+    "BILL_AMT1",
+    "BILL_AMT2",
+    "BILL_AMT3",
+    "BILL_AMT4",
+    "BILL_AMT5",
+    "BILL_AMT6",
+    "PAY_AMT1",
+    "PAY_AMT2",
+    "PAY_AMT3",
+    "PAY_AMT4",
+    "PAY_AMT5",
+    "PAY_AMT6",
+    "utilization_latest",
+    "utilization_mean_6m",
+    "utilization_max_6m",
+    "utilization_std_6m",
+    "utilization_trend_6m",
+    "avg_bill_6m",
+    "max_bill_6m",
+    "bill_volatility_6m",
+    "bill_trend_slope_6m",
+    "total_payment_6m",
+    "avg_payment_6m",
+    "payment_volatility_6m",
+    "payment_trend_slope_6m",
+    "payment_active_months_6m",
+    "late_month_count_6m",
+    "severe_late_month_count_6m",
+    "recent_late_month_count_3m",
+    "max_delay_severity_6m",
+    "avg_delay_severity_6m",
+    "consecutive_recent_late_months"
+  ],
+  "tree_rules": [
+    {
+      "conditions": [
+        "PAY_0 > 1.50",
+        "PAY_3 > -0.50",
+        "utilization_max_6m <= 0.92",
+        "payment_trend_slope_6m > -13.73"
+      ],
+      "default_rate": 0.7946,
+      "customers": 808
+    },
+    {
+      "conditions": [
+        "PAY_0 > 1.50",
+        "PAY_3 > -0.50",
+        "utilization_max_6m > 0.92",
+        "payment_volatility_6m > 693.20"
+      ],
+      "default_rate": 0.6962,
+      "customers": 688
+    },
+    {
+      "conditions": [
+        "PAY_0 > 1.50",
+        "PAY_3 > -0.50",
+        "utilization_max_6m <= 0.92",
+        "payment_trend_slope_6m <= -13.73"
+      ],
+      "default_rate": 0.6685,
+      "customers": 356
+    },
+    {
+      "conditions": [
+        "PAY_0 <= 1.50",
+        "avg_delay_severity_6m > 1.75"
+      ],
+      "default_rate": 0.5732,
+      "customers": 321
+    },
+    {
+      "conditions": [
+        "PAY_0 > 1.50",
+        "PAY_3 > -0.50",
+        "utilization_max_6m > 0.92",
+        "payment_volatility_6m <= 693.20"
+      ],
+      "default_rate": 0.5588,
+      "customers": 204
+    },
+    {
+      "conditions": [
+        "PAY_0 <= 1.50",
+        "0.75 < avg_delay_severity_6m <= 1.75"
+      ],
+      "default_rate": 0.425,
+      "customers": 1014
+    },
+    {
+      "conditions": [
+        "PAY_0 > 1.50",
+        "PAY_3 <= -0.50"
+      ],
+      "default_rate": 0.4245,
+      "customers": 139
+    },
+    {
+      "conditions": [
+        "PAY_0 <= 1.50",
+        "avg_delay_severity_6m <= 0.08",
+        "avg_payment_6m <= 1100.08",
+        "utilization_std_6m <= 0.00"
+      ],
+      "default_rate": 0.3403,
+      "customers": 288
+    },
+    {
+      "conditions": [
+        "PAY_0 <= 1.50",
+        "0.08 < avg_delay_severity_6m <= 0.75",
+        "avg_payment_6m <= 701.33"
+      ],
+      "default_rate": 0.3397,
+      "customers": 939
+    },
+    {
+      "conditions": [
+        "PAY_0 <= 1.50",
+        "0.08 < avg_delay_severity_6m <= 0.75",
+        "avg_payment_6m > 701.33"
+      ],
+      "default_rate": 0.2236,
+      "customers": 2621
+    },
+    {
+      "conditions": [
+        "PAY_0 <= 1.50",
+        "avg_delay_severity_6m <= 0.08",
+        "avg_payment_6m <= 1100.08",
+        "utilization_std_6m > 0.00"
+      ],
+      "default_rate": 0.1675,
+      "customers": 2453
+    },
+    {
+      "conditions": [
+        "PAY_0 <= 1.50",
+        "avg_delay_severity_6m <= 0.08",
+        "avg_payment_6m > 1100.08",
+        "utilization_max_6m > 0.95"
+      ],
+      "default_rate": 0.1463,
+      "customers": 2549
+    },
+    {
+      "conditions": [
+        "PAY_0 <= 1.50",
+        "avg_delay_severity_6m <= 0.08",
+        "avg_payment_6m > 1100.08",
+        "utilization_max_6m <= 0.95"
+      ],
+      "default_rate": 0.0825,
+      "customers": 8620
+    }
+  ],
+  "logreg_top": [
+    {
+      "feature": "severe_late_month_count_6m",
+      "coef": 1.69
+    },
+    {
+      "feature": "late_month_count_6m",
+      "coef": -1.22
+    },
+    {
+      "feature": "recent_late_month_count_3m",
+      "coef": 0.726
+    },
+    {
+      "feature": "avg_delay_severity_6m",
+      "coef": -0.518
+    },
+    {
+      "feature": "max_bill_6m",
+      "coef": -0.518
+    },
+    {
+      "feature": "max_delay_severity_6m",
+      "coef": 0.376
+    },
+    {
+      "feature": "payment_volatility_6m",
+      "coef": 0.33
+    },
+    {
+      "feature": "PAY_3",
+      "coef": -0.302
+    },
+    {
+      "feature": "PAY_2",
+      "coef": -0.23
+    },
+    {
+      "feature": "PAY_0",
+      "coef": 0.203
+    },
+    {
+      "feature": "LIMIT_BAL",
+      "coef": -0.186
+    },
+    {
+      "feature": "BILL_AMT6",
+      "coef": 0.173
+    }
+  ],
+  "xgb_importance": [
+    {
+      "feature": "max_delay_severity_6m",
+      "importance": 0.1837
+    },
+    {
+      "feature": "consecutive_recent_late_months",
+      "importance": 0.1766
+    },
+    {
+      "feature": "recent_late_month_count_3m",
+      "importance": 0.166
+    },
+    {
+      "feature": "severe_late_month_count_6m",
+      "importance": 0.1313
+    },
+    {
+      "feature": "late_month_count_6m",
+      "importance": 0.0728
+    },
+    {
+      "feature": "PAY_0",
+      "importance": 0.0571
+    },
+    {
+      "feature": "avg_delay_severity_6m",
+      "importance": 0.0305
+    },
+    {
+      "feature": "max_bill_6m",
+      "importance": 0.01
+    },
+    {
+      "feature": "total_payment_6m",
+      "importance": 0.0089
+    },
+    {
+      "feature": "bill_volatility_6m",
+      "importance": 0.0077
+    },
+    {
+      "feature": "utilization_std_6m",
+      "importance": 0.0077
+    },
+    {
+      "feature": "avg_bill_6m",
+      "importance": 0.0076
+    }
+  ],
+  "samples": {
+    "low": {
+      "LIMIT_BAL": 150000.0,
+      "SEX": 2.0,
+      "EDUCATION": 4.0,
+      "MARRIAGE": 2.0,
+      "AGE": 27.0,
+      "PAY_0": -2.0,
+      "PAY_2": -2.0,
+      "PAY_3": -1.0,
+      "PAY_4": -1.0,
+      "PAY_5": 0.0,
+      "PAY_6": -1.0,
+      "BILL_AMT1": 12178.0,
+      "BILL_AMT2": 22344.0,
+      "BILL_AMT3": 65330.0,
+      "BILL_AMT4": 20333.0,
+      "BILL_AMT5": 8433.0,
+      "BILL_AMT6": 10332.0,
+      "PAY_AMT1": 22452.0,
+      "PAY_AMT2": 65676.0,
+      "PAY_AMT3": 20368.0,
+      "PAY_AMT4": 25.0,
+      "PAY_AMT5": 10363.0,
+      "PAY_AMT6": 4881.0
+    },
+    "medium": {
+      "LIMIT_BAL": 20000.0,
+      "SEX": 1.0,
+      "EDUCATION": 2.0,
+      "MARRIAGE": 1.0,
+      "AGE": 38.0,
+      "PAY_0": 0.0,
+      "PAY_2": 0.0,
+      "PAY_3": 0.0,
+      "PAY_4": 0.0,
+      "PAY_5": 2.0,
+      "PAY_6": 0.0,
+      "BILL_AMT1": 6715.0,
+      "BILL_AMT2": 7736.0,
+      "BILL_AMT3": 8745.0,
+      "BILL_AMT4": 9394.0,
+      "BILL_AMT5": 9101.0,
+      "BILL_AMT6": 9282.0,
+      "PAY_AMT1": 1287.0,
+      "PAY_AMT2": 1296.0,
+      "PAY_AMT3": 945.0,
+      "PAY_AMT4": 0.0,
+      "PAY_AMT5": 481.0,
+      "PAY_AMT6": 829.0
+    },
+    "high": {
+      "LIMIT_BAL": 250000.0,
+      "SEX": 1.0,
+      "EDUCATION": 1.0,
+      "MARRIAGE": 1.0,
+      "AGE": 51.0,
+      "PAY_0": 3.0,
+      "PAY_2": 2.0,
+      "PAY_3": 2.0,
+      "PAY_4": 2.0,
+      "PAY_5": 2.0,
+      "PAY_6": 2.0,
+      "BILL_AMT1": 2487.0,
+      "BILL_AMT2": 2487.0,
+      "BILL_AMT3": 2487.0,
+      "BILL_AMT4": 2487.0,
+      "BILL_AMT5": 2487.0,
+      "BILL_AMT6": 2487.0,
+      "PAY_AMT1": 0.0,
+      "PAY_AMT2": 0.0,
+      "PAY_AMT3": 0.0,
+      "PAY_AMT4": 0.0,
+      "PAY_AMT5": 0.0,
+      "PAY_AMT6": 0.0
+    }
+  },
+  "default_costs": {
+    "tn": 0.0,
+    "fp": 1.0,
+    "fn": 5.0,
+    "tp": 0.0
+  }
+}
