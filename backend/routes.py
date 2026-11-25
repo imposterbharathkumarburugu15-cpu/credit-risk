@@ -14,8 +14,10 @@ from model import get_meta, is_model_available
 import optimization
 import prediction
 import service
+from workflows import workflow_router
 
 router = APIRouter(prefix="/api", tags=["CreditRisk-X Core API"])
+router.include_router(workflow_router)
 
 
 # ---------------------------------------------------------------------------

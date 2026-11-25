@@ -82,6 +82,35 @@
           <p>The result shows up here.</p>
         </div>
       </div>
+
+      <div class="email-panel" id="email-panel">
+        <h3>Send Automated Notification Email</h3>
+        <p class="hint">Click <strong>Send Email</strong> after scoring to send the corresponding workflow notification.</p>
+        <div class="field-grid">
+          <label>Customer Name
+            <input type="text" id="email-customer-name" placeholder="Applicant name" value="Applicant">
+          </label>
+          <label>Recipient Email
+            <input type="email" id="email-recipient" placeholder="customer@example.com">
+          </label>
+          <label>Notification Type
+            <select id="email-event-type">
+              <option value="application_submitted">Application Confirmation</option>
+              <option value="status_change">Status Change</option>
+              <option value="missing_documents">Missing Documents Request</option>
+              <option value="final_decision">Final Decision</option>
+              <option value="high_risk_review">High-Risk Employee Review</option>
+            </select>
+          </label>
+          <label>Employee Key
+            <input type="password" id="email-employee-key" placeholder="X-Employee-Key">
+          </label>
+        </div>
+        <div class="email-actions">
+          <button id="send-email-btn" class="btn primary">Send Email</button>
+          <span id="email-status-msg" class="hint"></span>
+        </div>
+      </div>
     </section>
 
     <!-- 6. rules -->

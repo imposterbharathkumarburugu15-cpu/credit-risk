@@ -14,6 +14,7 @@ let costChart = null;
 let prChart = null;
 let treeRules = [];          // kept around so we can re-shade rows when costs change
 let latestComparison = null;
+let latestScoreResult = null;
 
 // ---------- small helpers ----------
 
@@ -278,10 +279,63 @@ async function scoreCustomer() {
       const err = await res.json();
       throw new Error(JSON.stringify(err.detail));
     }
-    renderResult(await res.json());
+    const data = await res.json();
+    // Normalize probability field between /api/predict variants
+    if (data.probability === undefined && data.default_probability !== undefined) {
+      data.probability = data.default_probability;
+    }
+    latestScoreResult = data;
+    renderResult(data);
   } catch (e) {
     box.classList.remove("empty");
     box.innerHTML = `<p class="error">Could not score: ${esc(e.message)}</p>`;
+  }
+}
+
+async function sendNotificationEmail() {
+  const statusEl = document.getElementById("email-status-msg");
+  const recipient = document.getElementById("email-recipient").value.trim();
+  const customerName = document.getElementById("email-customer-name").value.trim() || "Customer";
+  const eventType = document.getElementById("email-event-type").value;
+  const employeeKey = document.getElementById("email-employee-key").value.trim();
+
+  if (eventType !== "high_risk_review" && !recipient) {
+    statusEl.textContent = "Please enter a recipient email.";
+    statusEl.className = "hint error";
+    return;
+  }
+
+  statusEl.textContent = "Sending...";
+  statusEl.className = "hint";
+
+  const band = latestScoreResult ? (latestScoreResult.band || latestScoreResult.risk_classification || "MEDIUM") : "MEDIUM";
+  const decisionText = band === "HIGH" ? "DECLINED" : "APPROVED";
+
+  try {
+    const headers = { "Content-Type": "application/json" };
+    if (employeeKey) headers["X-Employee-Key"] = employeeKey;
+
+    const res = await fetch(`${API}/notifications/send`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        event_type: eventType,
+        recipient_email: recipient || null,
+        customer_name: customerName,
+        risk_classification: band,
+        status: band === "HIGH" ? "UNDER_REVIEW" : "SUBMITTED",
+        decision: decisionText,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.detail || `HTTP ${res.status}`);
+    }
+    statusEl.textContent = `${data.status}: ${data.message}`;
+    statusEl.className = data.success ? "hint success-msg" : "hint error";
+  } catch (e) {
+    statusEl.textContent = `Error: ${e.message}`;
+    statusEl.className = "hint error";
   }
 }
 
@@ -302,6 +356,7 @@ async function init() {
 
   document.getElementById("apply-costs").addEventListener("click", refreshAnalysis);
   document.getElementById("score-btn").addEventListener("click", scoreCustomer);
+  document.getElementById("send-email-btn").addEventListener("click", sendNotificationEmail);
   document.querySelectorAll("[data-sample]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       fillCustomer(await getJSON(`${API}/sample/${btn.dataset.sample}`));
