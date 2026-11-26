@@ -43,7 +43,7 @@ def startup_event():
     try:
         database.get_client()
     except Exception as e:
-        print(f"[WARNING] MongoDB connection skipped or failed: {e}")
+        print(f"[WARNING] MySQL connection skipped or failed: {e}")
 
 
 # Root check

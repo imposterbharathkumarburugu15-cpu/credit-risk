@@ -1,0 +1,9 @@
+{
+  "name": "abhaya-frontend",
+  "version": "1.0.0",
+  "description": "Abhaya Employee Portal frontend server with FastAPI /api proxy",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

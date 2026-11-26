@@ -85,7 +85,7 @@ def health():
     try:
         client = database.get_client()
         if client is not None:
-            client.admin.command("ping")
+            client.ping(reconnect=True)
             db_connected = True
     except Exception:
         db_connected = False
@@ -96,7 +96,7 @@ def health():
         "model_loaded": is_model_available(),
         "model_version": config.MODEL_VERSION,
         "features_expected": 43,
-        "mongodb_connected": db_connected,
+        "mysql_connected": db_connected,
         "default_threshold": config.DEFAULT_THRESHOLD,
     }
 

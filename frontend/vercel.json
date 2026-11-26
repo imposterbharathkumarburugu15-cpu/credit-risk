@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://abhaya-api.onrender.com/api/$1"
+    }
+  ]
+}

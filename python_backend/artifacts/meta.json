@@ -221,47 +221,47 @@
   "xgb_importance": [
     {
       "feature": "max_delay_severity_6m",
-      "importance": 0.1837
-    },
-    {
-      "feature": "consecutive_recent_late_months",
-      "importance": 0.1766
+      "importance": 0.2185
     },
     {
       "feature": "recent_late_month_count_3m",
-      "importance": 0.166
+      "importance": 0.1812
     },
     {
       "feature": "severe_late_month_count_6m",
-      "importance": 0.1313
+      "importance": 0.1446
+    },
+    {
+      "feature": "consecutive_recent_late_months",
+      "importance": 0.1036
     },
     {
       "feature": "late_month_count_6m",
-      "importance": 0.0728
+      "importance": 0.0703
     },
     {
       "feature": "PAY_0",
-      "importance": 0.0571
+      "importance": 0.0648
     },
     {
       "feature": "avg_delay_severity_6m",
-      "importance": 0.0305
-    },
-    {
-      "feature": "max_bill_6m",
-      "importance": 0.01
+      "importance": 0.0422
     },
     {
       "feature": "total_payment_6m",
-      "importance": 0.0089
+      "importance": 0.009
     },
     {
       "feature": "bill_volatility_6m",
-      "importance": 0.0077
+      "importance": 0.0083
     },
     {
       "feature": "utilization_std_6m",
       "importance": 0.0077
+    },
+    {
+      "feature": "payment_active_months_6m",
+      "importance": 0.0076
     },
     {
       "feature": "avg_bill_6m",
@@ -270,54 +270,54 @@
   ],
   "samples": {
     "low": {
-      "LIMIT_BAL": 150000.0,
+      "LIMIT_BAL": 180000.0,
       "SEX": 2.0,
       "EDUCATION": 4.0,
-      "MARRIAGE": 2.0,
-      "AGE": 27.0,
-      "PAY_0": -2.0,
-      "PAY_2": -2.0,
+      "MARRIAGE": 1.0,
+      "AGE": 41.0,
+      "PAY_0": -1.0,
+      "PAY_2": -1.0,
       "PAY_3": -1.0,
       "PAY_4": -1.0,
-      "PAY_5": 0.0,
+      "PAY_5": -1.0,
       "PAY_6": -1.0,
-      "BILL_AMT1": 12178.0,
-      "BILL_AMT2": 22344.0,
-      "BILL_AMT3": 65330.0,
-      "BILL_AMT4": 20333.0,
-      "BILL_AMT5": 8433.0,
-      "BILL_AMT6": 10332.0,
-      "PAY_AMT1": 22452.0,
-      "PAY_AMT2": 65676.0,
-      "PAY_AMT3": 20368.0,
-      "PAY_AMT4": 25.0,
-      "PAY_AMT5": 10363.0,
-      "PAY_AMT6": 4881.0
+      "BILL_AMT1": 22777.0,
+      "BILL_AMT2": 20311.0,
+      "BILL_AMT3": 20726.0,
+      "BILL_AMT4": 22111.0,
+      "BILL_AMT5": 25560.0,
+      "BILL_AMT6": 2461.0,
+      "PAY_AMT1": 20328.0,
+      "PAY_AMT2": 20789.0,
+      "PAY_AMT3": 22169.0,
+      "PAY_AMT4": 25560.0,
+      "PAY_AMT5": 2461.0,
+      "PAY_AMT6": 10947.0
     },
     "medium": {
-      "LIMIT_BAL": 20000.0,
+      "LIMIT_BAL": 110000.0,
       "SEX": 1.0,
-      "EDUCATION": 2.0,
+      "EDUCATION": 3.0,
       "MARRIAGE": 1.0,
-      "AGE": 38.0,
-      "PAY_0": 0.0,
-      "PAY_2": 0.0,
-      "PAY_3": 0.0,
-      "PAY_4": 0.0,
-      "PAY_5": 2.0,
-      "PAY_6": 0.0,
-      "BILL_AMT1": 6715.0,
-      "BILL_AMT2": 7736.0,
-      "BILL_AMT3": 8745.0,
-      "BILL_AMT4": 9394.0,
-      "BILL_AMT5": 9101.0,
-      "BILL_AMT6": 9282.0,
-      "PAY_AMT1": 1287.0,
-      "PAY_AMT2": 1296.0,
-      "PAY_AMT3": 945.0,
-      "PAY_AMT4": 0.0,
-      "PAY_AMT5": 481.0,
-      "PAY_AMT6": 829.0
+      "AGE": 57.0,
+      "PAY_0": -1.0,
+      "PAY_2": -1.0,
+      "PAY_3": -1.0,
+      "PAY_4": -1.0,
+      "PAY_5": -1.0,
+      "PAY_6": -1.0,
+      "BILL_AMT1": 390.0,
+      "BILL_AMT2": 390.0,
+      "BILL_AMT3": 390.0,
+      "BILL_AMT4": 390.0,
+      "BILL_AMT5": 390.0,
+      "BILL_AMT6": 390.0,
+      "PAY_AMT1": 390.0,
+      "PAY_AMT2": 390.0,
+      "PAY_AMT3": 390.0,
+      "PAY_AMT4": 390.0,
+      "PAY_AMT5": 390.0,
+      "PAY_AMT6": 390.0
     },
     "high": {
       "LIMIT_BAL": 250000.0,
@@ -325,7 +325,7 @@
       "EDUCATION": 1.0,
       "MARRIAGE": 1.0,
       "AGE": 51.0,
-      "PAY_0": 3.0,
+      "PAY_0": 2.0,
       "PAY_2": 2.0,
       "PAY_3": 2.0,
       "PAY_4": 2.0,

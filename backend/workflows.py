@@ -404,6 +404,15 @@ def email_config_status():
     }
 
 
+@workflow_router.get("/email/logs")
+def list_email_logs(
+    limit: int = 50,
+    _employee: Dict[str, Any] = Depends(require_employee),
+):
+    """Return recent email delivery logs (employee-only)."""
+    return {"logs": database.get_email_logs(limit=limit)}
+
+
 @workflow_router.post("/notifications/send")
 def send_template_notification(
     req: SendNotificationRequest,

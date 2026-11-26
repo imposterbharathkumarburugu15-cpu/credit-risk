@@ -11,9 +11,13 @@ DATA_DIR = ROOT_DIR / "data"
 PORT = int(os.getenv("PYTHON_PORT", "8000"))
 HOST = os.getenv("PYTHON_HOST", "0.0.0.0")
 
-# Database configuration
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-DATABASE_NAME = os.getenv("MONGO_DB_NAME", "creditrisk_x")
+# Database configuration (MySQL)
+MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
+MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
+MYSQL_USER = os.getenv("MYSQL_USER", "root")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
+DATABASE_NAME = os.getenv("MYSQL_DATABASE", "creditrisk_x")
+MYSQL_DATABASE = DATABASE_NAME
 
 # Kaggle Model handle and filename
 KAGGLE_HANDLE = "manivardhangundoju/credit-default-risk-prediction-model-xgboost/scikitLearn/default/1"

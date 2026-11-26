@@ -87,7 +87,7 @@ def health():
     try:
         client = database.get_client()
         if client is not None:
-            client.admin.command("ping")
+            client.ping(reconnect=True)
             db_connected = True
     except Exception:
         db_connected = False
@@ -98,7 +98,7 @@ def health():
         "model_loaded": is_model_available(),
         "model_version": config.MODEL_VERSION,
         "features_expected": 43,
-        "mongodb_connected": db_connected,
+        "mysql_connected": db_connected,
         "default_threshold": config.DEFAULT_THRESHOLD,
     }
 
@@ -167,6 +167,8 @@ def predict_batch_endpoint(payload: PredictBatchRequest):
     threshold = payload.threshold or config.DEFAULT_THRESHOLD
     table_predicted_default: List[Dict[str, Any]] = []
     table_predicted_non_default: List[Dict[str, Any]] = []
+    skipped_count = 0
+    errors: List[str] = []
 
     for idx, rec in enumerate(payload.records):
         cust_id = rec.get("customer_id", rec.get("record_id", rec.get("id", f"CUST-{idx+1:04d}")))
@@ -197,7 +199,36 @@ def predict_batch_endpoint(payload: PredictBatchRequest):
                 "features_summary": {
                     "limit_bal": rec.get("LIMIT_BAL"),
                     "age": rec.get("AGE"),
+                    "sex": rec.get("SEX"),
+                    "education": rec.get("EDUCATION"),
+                    "marriage": rec.get("MARRIAGE"),
                     "pay_0": rec.get("PAY_0"),
+                    "due_date": rec.get("due_date"),
+                    "due_amount": rec.get("due_amount"),
+                    "bills": [
+                        rec.get("BILL_AMT1", 0),
+                        rec.get("BILL_AMT2", 0),
+                        rec.get("BILL_AMT3", 0),
+                        rec.get("BILL_AMT4", 0),
+                        rec.get("BILL_AMT5", 0),
+                        rec.get("BILL_AMT6", 0),
+                    ],
+                    "payments": [
+                        rec.get("PAY_AMT1", 0),
+                        rec.get("PAY_AMT2", 0),
+                        rec.get("PAY_AMT3", 0),
+                        rec.get("PAY_AMT4", 0),
+                        rec.get("PAY_AMT5", 0),
+                        rec.get("PAY_AMT6", 0),
+                    ],
+                    "pay_statuses": [
+                        rec.get("PAY_0", 0),
+                        rec.get("PAY_2", 0),
+                        rec.get("PAY_3", 0),
+                        rec.get("PAY_4", 0),
+                        rec.get("PAY_5", 0),
+                        rec.get("PAY_6", 0),
+                    ],
                 }
             }
 
@@ -207,12 +238,16 @@ def predict_batch_endpoint(payload: PredictBatchRequest):
                 table_predicted_non_default.append(item)
 
         except Exception as e:
-            # Skip invalid rows or mark error
+            skipped_count += 1
+            if len(errors) < 5:
+                errors.append(f"Row {idx + 1}: {e}")
             continue
 
     return {
         "threshold": threshold,
         "total_processed": len(payload.records),
+        "skipped_count": skipped_count,
+        "errors": errors,
         "predicted_default_count": len(table_predicted_default),
         "predicted_non_default_count": len(table_predicted_non_default),
         "table_predicted_default": table_predicted_default,
@@ -364,3 +399,36 @@ def sample(kind: str):
     if row is None:
         raise HTTPException(status_code=404, detail="Sample not found. Must be low, medium, or high.")
     return row
+
+
+@router.get("/demo-applicants")
+def demo_applicants(limit: int = Query(5, ge=1, le=15)):
+    """Return a small set of real sample applicants from data/sample_applications_with_emails.csv scored by XGBoost."""
+    import csv
+    csv_path = config.DATA_DIR / "sample_applications_with_emails.csv"
+    if not csv_path.is_file():
+        return {"records": []}
+
+    records: List[Dict[str, Any]] = []
+    with csv_path.open("r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for idx, row in enumerate(reader):
+            if idx >= limit:
+                break
+            parsed: Dict[str, Any] = {}
+            for k, v in row.items():
+                if k in ("record_id", "customer_name", "email", "application_id", "due_date"):
+                    parsed[k] = v
+                else:
+                    try:
+                        parsed[k] = float(v) if "." in str(v) else int(v)
+                    except (TypeError, ValueError):
+                        parsed[k] = v
+            records.append(parsed)
+
+    if not records or not is_model_available():
+        return {"records": records}
+
+    scored = predict_batch_endpoint(PredictBatchRequest(records=records, threshold=config.DEFAULT_THRESHOLD))
+    combined = scored["table_predicted_default"] + scored["table_predicted_non_default"]
+    return {"records": combined, "threshold": scored["threshold"]}

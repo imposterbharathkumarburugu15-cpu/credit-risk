@@ -2,148 +2,762 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Credit Default Risk Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Abhaya — Employee Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
-  <header>
-    <h1>Credit Default Risk Dashboard</h1>
-    <p>Cost-sensitive decisions on the credit card default data. Change the costs and everything below recalculates.</p>
-  </header>
-
-  <main>
-    <!-- 1. cost matrix -->
-    <section class="card">
-      <h2>1. Cost matrix</h2>
-      <p class="hint">What each outcome costs the bank (in units of one false alarm). Thresholds are picked on the validation set, results are reported on the test set.</p>
-      <div class="matrix-wrap">
-        <table class="matrix">
-          <tr><th></th><th>Predicted: no default</th><th>Predicted: default</th></tr>
-          <tr>
-            <th>Actually no default</th>
-            <td><label>True negative <input type="number" id="cost-tn" value="0" min="0" step="0.5"></label></td>
-            <td><label>False alarm (FP) <input type="number" id="cost-fp" value="1" min="0" step="0.5"></label></td>
-          </tr>
-          <tr>
-            <th>Actually defaults</th>
-            <td><label>Missed default (FN) <input type="number" id="cost-fn" value="5" min="0" step="0.5"></label></td>
-            <td><label>True positive <input type="number" id="cost-tp" value="0" min="0" step="0.5"></label></td>
-          </tr>
-        </table>
-        <button id="apply-costs" class="btn">Recalculate</button>
-      </div>
-    </section>
-
-    <!-- 2. model comparison -->
-    <section class="card">
-      <h2>2. Model comparison (test set)</h2>
-      <div class="table-scroll"><table id="compare-table" class="data"></table></div>
-      <p id="baselines" class="hint"></p>
-    </section>
-
-    <!-- 3. charts -->
-    <section class="grid-2">
-      <div class="card">
-        <h2>3. Threshold vs. total cost</h2>
-        <p class="hint">Validation set. The lowest point of each line is that model's chosen threshold.</p>
-        <div class="chart-box"><canvas id="cost-chart"></canvas></div>
-      </div>
-      <div class="card">
-        <h2>4. Precision-recall curves</h2>
-        <p class="hint">Test set. The dashed line is the default rate, i.e. a model with no skill.</p>
-        <div class="chart-box"><canvas id="pr-chart"></canvas></div>
-      </div>
-    </section>
-
-    <!-- 5. scorer -->
-    <section class="card">
-      <h2>5. Score a customer</h2>
-      <p class="hint">Scored by the XGBoost model using the cost-optimal threshold for the matrix above.</p>
-      <div class="sample-row">
-        Load an example:
-        <button class="btn small" data-sample="low">Low risk</button>
-        <button class="btn small" data-sample="medium">Medium risk</button>
-        <button class="btn small" data-sample="high">High risk</button>
+  <div class="app-shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 40 40" width="38" height="38" fill="none">
+            <defs>
+              <linearGradient id="abhayaGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#fde68a"/>
+                <stop offset="50%" stop-color="#f4cd68"/>
+                <stop offset="100%" stop-color="#b47b16"/>
+              </linearGradient>
+            </defs>
+            <path d="M20 3L34 8.5V19.5C34 28.2 27.9 35.1 20 37.5C12.1 35.1 6 28.2 6 19.5V8.5L20 3Z" fill="rgba(244,205,104,0.1)" stroke="url(#abhayaGold)" stroke-width="2"/>
+            <rect x="12" y="21" width="3.5" height="7.5" rx="1.5" fill="url(#abhayaGold)"/>
+            <rect x="18.2" y="16.5" width="3.5" height="12" rx="1.5" fill="url(#abhayaGold)"/>
+            <rect x="24.5" y="12" width="3.5" height="16.5" rx="1.5" fill="url(#abhayaGold)"/>
+            <path d="M11.5 16L18 11.5L22.5 14L29 8.5" stroke="#fde68a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-name">ABHAYA</div>
+          <div class="brand-sub">Risk Intelligence Portal</div>
+        </div>
       </div>
 
-      <div class="scorer">
-        <div id="customer-form">
-          <div class="field-grid" id="profile-fields"></div>
-          <div class="table-scroll">
-            <table class="months" id="months-table"></table>
+      <nav class="nav" id="sidebar-nav">
+        <button class="nav-item active" data-view="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5z"/></svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item" data-view="single">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-6 8-6s8 2 8 6"/></svg>
+          <span>Single Applicant</span>
+        </button>
+        <button class="nav-item" data-view="bulk">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4m0 0-4 4m4-4 4 4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          <span>Bulk Processing</span>
+        </button>
+        <button class="nav-item" data-view="applicants">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5c2.5 0 5 1.3 5 4"/></svg>
+          <span>Applicants</span>
+        </button>
+        <button class="nav-item" data-view="emails">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+          <span>Automated Emails</span>
+        </button>
+        <button class="nav-item" data-view="reports">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10m6 10V4m6 16v-7m6 7v-11"/></svg>
+          <span>Reports</span>
+        </button>
+        <button class="nav-item" data-view="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+          <span>Settings</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-glow" aria-hidden="true">
+        <svg viewBox="0 0 240 120" fill="none" preserveAspectRatio="none">
+          <path d="M0 95 Q60 40 130 78 T240 35" stroke="rgba(244,205,104,0.35)" stroke-width="1.4"/>
+          <path d="M0 105 Q75 55 145 86 T240 50" stroke="rgba(212,155,40,0.25)" stroke-width="1.2"/>
+          <path d="M0 115 Q90 70 160 95 T240 65" stroke="rgba(212,155,40,0.15)" stroke-width="1"/>
+        </svg>
+      </div>
+      <div class="sidebar-footer">
+        <button class="logout-btn" id="logout-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-area">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-btn mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle navigation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <div>
+            <h1 id="page-title">Abhaya Risk Dashboard</h1>
+            <p id="page-subtitle">Cost-sensitive credit default intelligence &amp; collections portal</p>
           </div>
-          <p class="hint">Repayment status: -2 no use of credit, -1 paid in full, 0 minimum paid / revolving, 1-8 months behind.</p>
-          <button id="score-btn" class="btn primary">Score customer</button>
         </div>
-
-        <div id="result" class="result empty">
-          <p>The result shows up here.</p>
+        <div class="topbar-right">
+          <button class="icon-btn" id="notif-btn" title="Pending high-risk alerts" aria-label="Pending high-risk alerts">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="notif-dot" id="notif-count">0</span>
+          </button>
+          <div class="user-pill" id="employee-pill" role="button" tabindex="0" title="Configure Employee API Key in Settings">
+            <span class="avatar">E</span>
+            <span id="employee-label">Employee</span>
+          </div>
         </div>
-      </div>
+      </header>
 
-      <div class="email-panel" id="email-panel">
-        <h3>Send Automated Notification Email</h3>
-        <p class="hint">Click <strong>Send Email</strong> after scoring to send the corresponding workflow notification.</p>
-        <div class="field-grid">
-          <label>Customer Name
-            <input type="text" id="email-customer-name" placeholder="Applicant name" value="Applicant">
-          </label>
-          <label>Recipient Email
-            <input type="email" id="email-recipient" placeholder="customer@example.com">
-          </label>
-          <label>Notification Type
-            <select id="email-event-type">
-              <option value="application_submitted">Application Confirmation</option>
-              <option value="status_change">Status Change</option>
-              <option value="missing_documents">Missing Documents Request</option>
-              <option value="final_decision">Final Decision</option>
-              <option value="high_risk_review">High-Risk Employee Review</option>
-            </select>
-          </label>
-          <label>Employee Key
-            <input type="password" id="email-employee-key" placeholder="X-Employee-Key">
-          </label>
-        </div>
-        <div class="email-actions">
-          <button id="send-email-btn" class="btn primary">Send Email</button>
-          <span id="email-status-msg" class="hint"></span>
-        </div>
-      </div>
-    </section>
+      <main class="content">
+        <!-- VIEW 1: DASHBOARD -->
+        <section class="view active" id="view-dashboard">
+          <div class="kpi-grid">
+            <div class="card kpi-card">
+              <div class="kpi-label">Exposure at Risk (High / Default)</div>
+              <div class="kpi-value red-text" id="dash-exposure-risk">₹ 0</div>
+              <div class="kpi-meta" id="dash-exposure-share">0% of total portfolio due</div>
+            </div>
+            <div class="card kpi-card">
+              <div class="kpi-label">Expected Credit Loss (ECL)</div>
+              <div class="kpi-value gold-text" id="dash-expected-loss">₹ 0</div>
+              <div class="kpi-meta" id="dash-total-due-meta">Total portfolio due: ₹ 0</div>
+            </div>
+            <div class="card kpi-card">
+              <div class="kpi-label">Avg. Portfolio Credit Score</div>
+              <div class="kpi-value" id="dash-avg-score">--</div>
+              <div class="kpi-meta" id="dash-default-rate">0 high · 0 med · 0 low</div>
+            </div>
+            <div class="card kpi-card">
+              <div class="kpi-label">XGBoost Optimal Threshold</div>
+              <div class="kpi-value gold-text" id="dash-threshold">--</div>
+              <div class="kpi-meta" id="dash-saving">ROC-AUC: -- · Cost saving: --</div>
+            </div>
+          </div>
 
-    <!-- 6. rules -->
-    <section class="card">
-      <h2>6. Decision rules</h2>
-      <div class="policy">
-        <strong>Decision policy.</strong>
-        Let <em>t</em> be the cost-optimal threshold for the matrix above.
-        <ul>
-          <li>probability &ge; <em>t</em> &rarr; <b class="band-high">HIGH</b>: decline or manual review</li>
-          <li><em>t</em>/2 &le; probability &lt; <em>t</em> &rarr; <b class="band-medium">MEDIUM</b>: approve with a lower limit and monitoring</li>
-          <li>probability &lt; <em>t</em>/2 &rarr; <b class="band-low">LOW</b>: approve</li>
-        </ul>
-      </div>
+          <div class="employer-strip card">
+            <div class="strip-item">
+              <span class="muted-label">Avg. Utilization</span>
+              <strong id="dash-avg-util">0.0%</strong>
+            </div>
+            <div class="strip-item">
+              <span class="muted-label">On-Time Payment Rate</span>
+              <strong class="green-text" id="dash-ontime-rate">0.0%</strong>
+            </div>
+            <div class="strip-item">
+              <span class="muted-label">Severe Late (2M+ Delay)</span>
+              <strong class="red-text" id="dash-severe-late">0</strong>
+            </div>
+            <div class="strip-item">
+              <span class="muted-label">Collection Recovery Target</span>
+              <strong class="gold-text" id="dash-recovery-target">₹ 0</strong>
+            </div>
+          </div>
 
-      <h3>Decision tree rules (depth 4)</h3>
-      <p class="hint">Each row is one path through the tree. Rows shaded red would be flagged at the tree's current threshold.</p>
-      <div class="table-scroll"><table id="tree-rules" class="data"></table></div>
+          <div class="grid-2-equal">
+            <div class="card">
+              <div class="card-header">
+                <h3>Portfolio Risk &amp; Exposure (Employer View)</h3>
+                <span class="pill muted" id="dash-mix-label">0 Applicants</span>
+              </div>
+              <div class="dash-charts-3">
+                <div class="chart-box-sm"><canvas id="dash-risk-chart"></canvas></div>
+                <div class="chart-box-sm"><canvas id="dash-exposure-chart"></canvas></div>
+                <div class="chart-box-sm"><canvas id="dash-score-dist-chart"></canvas></div>
+              </div>
+              <div class="quick-actions" style="margin-top:12px;">
+                <button class="quick-card" data-goto="single">
+                  <div class="quick-title">Single Assessment</div>
+                  <div class="quick-desc">Gauge, 6M history &amp; SHAP reasons.</div>
+                </button>
+                <button class="quick-card" data-goto="bulk">
+                  <div class="quick-title">Bulk CSV Scoring</div>
+                  <div class="quick-desc">Upload CSV &amp; run XGBoost batch.</div>
+                </button>
+                <button class="quick-card" data-goto="emails">
+                  <div class="quick-title">Automated Emails</div>
+                  <div class="quick-desc">Templates &amp; SMTP collections.</div>
+                </button>
+                <button class="quick-card" data-goto="reports">
+                  <div class="quick-title">Cost &amp; PR Reports</div>
+                  <div class="quick-desc">FN/FP matrix &amp; decision rules.</div>
+                </button>
+              </div>
+            </div>
 
-      <div class="grid-2">
+            <div class="card">
+              <div class="card-header">
+                <h3>Priority Collections Snapshot</h3>
+                <div class="hint" id="dash-system-status">Checking...</div>
+              </div>
+              <div class="table-wrap">
+                <table class="data-table" id="dash-snapshot-table">
+                  <thead>
+                    <tr><th>ID</th><th>Name</th><th>Score</th><th>Due (₹)</th><th>Risk</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <div class="hint small-top" id="dash-db-status">MySQL &amp; Email service</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 2: SINGLE APPLICANT ASSESSMENT -->
+        <section class="view" id="view-single">
+          <div class="card search-bar-card">
+            <div class="search-bar-row">
+              <label class="inline-label" for="single-id-input">Applicant ID</label>
+              <input type="text" id="single-id-input" class="input" value="101" placeholder="e.g. 101 or CUST-0001">
+              <button class="btn gold" id="fetch-single-btn">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                Fetch Details
+              </button>
+              <span class="hint">Examples:
+                <button class="link-btn" data-sample-kind="low">Low Risk</button> ·
+                <button class="link-btn" data-sample-kind="medium">Medium Risk</button> ·
+                <button class="link-btn" data-sample-kind="high">High Risk</button>
+              </span>
+            </div>
+          </div>
+
+          <div class="grid-3-single">
+            <!-- Credit Score Gauge -->
+            <div class="card">
+              <div class="card-title-icon">Credit Score</div>
+              <div class="gauge-wrap">
+                <svg class="gauge-svg" viewBox="0 0 220 130">
+                  <defs>
+                    <linearGradient id="gaugeGradSingle" x1="0%" y1="100%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="#ef4444"/>
+                      <stop offset="50%" stop-color="#f59e0b"/>
+                      <stop offset="100%" stop-color="#22c55e"/>
+                    </linearGradient>
+                  </defs>
+                  <path d="M 22 110 A 88 88 0 0 1 198 110" fill="none" stroke="#262a35" stroke-width="14" stroke-linecap="round"/>
+                  <path id="single-gauge-arc" d="M 22 110 A 88 88 0 0 1 198 110" fill="none" stroke="url(#gaugeGradSingle)" stroke-width="14" stroke-linecap="round" stroke-dasharray="276" stroke-dashoffset="60"/>
+                  <circle id="single-gauge-dot" cx="170" cy="52" r="6" fill="#ffffff"/>
+                </svg>
+                <div class="gauge-center">
+                  <div class="gauge-score" id="single-score">--</div>
+                  <div class="gauge-max">/ 900</div>
+                </div>
+              </div>
+              <div class="gauge-badge-wrap">
+                <span class="pill green" id="single-credit-badge">Good Credit</span>
+              </div>
+            </div>
+
+            <!-- Applicant Details -->
+            <div class="card">
+              <div class="card-title-icon">Applicant Details</div>
+              <div class="kv-list" id="single-details-kv">
+                <div class="kv-row"><span>Applicant ID</span><strong id="sd-id">--</strong></div>
+                <div class="kv-row"><span>Name</span><strong id="sd-name">--</strong></div>
+                <div class="kv-row"><span>Age</span><strong id="sd-age">--</strong></div>
+                <div class="kv-row"><span>Education</span><strong id="sd-edu">--</strong></div>
+                <div class="kv-row"><span>Credit Limit</span><strong id="sd-limit">--</strong></div>
+                <div class="kv-row"><span>Email</span><strong id="sd-email">--</strong></div>
+              </div>
+            </div>
+
+            <!-- Loan Eligibility & Limit Action -->
+            <div class="card">
+              <div class="card-title-icon">Credit Limit &amp; Payment Action <span class="muted-inline">(Risk-Adjusted)</span></div>
+              <div class="elig-boxes">
+                <div class="elig-box">
+                  <div class="elig-label" id="single-elig-label">Recommended Credit Limit</div>
+                  <div class="elig-val gold-text" id="single-elig-amount">--</div>
+                </div>
+                <div class="elig-box">
+                  <div class="elig-label" id="single-pay-label">Suggested Monthly Payment</div>
+                  <div class="elig-val" id="single-elig-tenure">--</div>
+                </div>
+              </div>
+              <p class="hint small-top" id="single-limit-note">Based on past 6 months payment behavior, credit score, and default risk.</p>
+            </div>
+          </div>
+
+          <div class="grid-2-equal">
+            <!-- Payment Behavior Chart -->
+            <div class="card">
+              <div class="card-header">
+                <h3>Payment Behavior – Last 6 Months</h3>
+                <div class="legend-inline">
+                  <span><i class="dot gold-bg"></i> Paid Amount</span>
+                  <span><i class="dot gray-bg"></i> Billed Amount</span>
+                </div>
+              </div>
+              <div class="chart-box-sm"><canvas id="single-payment-chart"></canvas></div>
+            </div>
+
+            <!-- Utilization Trend Chart -->
+            <div class="card">
+              <div class="card-header">
+                <h3>Credit Utilization Trend (%)</h3>
+                <span class="pill muted" id="single-util-badge">0.0% Latest</span>
+              </div>
+              <div class="chart-box-sm"><canvas id="single-util-chart"></canvas></div>
+            </div>
+          </div>
+
+          <!-- 23 Raw Inputs -> 46 Features Inspector & Manual Scorer -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3>All 23 Raw Inputs &rarr; 46 Feature Matrix</h3>
+                <span class="hint">Edit any of the 23 raw fields (or upload a 1-row CSV) and click Score Custom Inputs to compute all 46 features.</span>
+              </div>
+              <div class="drop-btns" style="margin-top:0;">
+                <label class="btn outline small" for="single-csv-input">Upload 1-Row CSV</label>
+                <input type="file" id="single-csv-input" accept=".csv,text/csv" hidden>
+                <button class="btn gold small" id="score-custom-23-btn">Score Custom 23 Inputs</button>
+              </div>
+            </div>
+
+            <div class="raw-23-grid">
+              <label>LIMIT_BAL (₹)<input type="number" class="input compact" id="in-LIMIT_BAL" value="50000"></label>
+              <label>SEX (1=M, 2=F)<input type="number" class="input compact" id="in-SEX" value="2" min="1" max="2"></label>
+              <label>EDUCATION (1-4)<input type="number" class="input compact" id="in-EDUCATION" value="2" min="1" max="4"></label>
+              <label>MARRIAGE (1-3)<input type="number" class="input compact" id="in-MARRIAGE" value="1" min="1" max="3"></label>
+              <label>AGE<input type="number" class="input compact" id="in-AGE" value="30" min="18" max="100"></label>
+            </div>
+
+            <div class="table-wrap" style="margin-top:10px;">
+              <table class="data-table compact">
+                <thead>
+                  <tr><th>Month</th><th>PAY Status (-2..8)</th><th>BILL_AMT (₹)</th><th>PAY_AMT (₹)</th></tr>
+                </thead>
+                <tbody id="raw-months-inputs"></tbody>
+              </table>
+            </div>
+
+            <div class="sub-heading" style="margin-top:14px;">Computed 46-Feature Vector (23 Raw + 20 Model-Engineered + 3 Employer Ratios)</div>
+            <div class="features-46-grid" id="features-46-grid"></div>
+          </div>
+
+          <div class="grid-2-wide-left">
+            <!-- Key Statistical Insights -->
+            <div class="card">
+              <div class="card-title-icon">Key Statistical Insights</div>
+              <div class="kv-list">
+                <div class="kv-row"><span>Average Monthly Payment</span><strong id="si-avg-pay">--</strong></div>
+                <div class="kv-row"><span>On-time Payment Rate</span><span class="pill green" id="si-ontime">--</span></div>
+                <div class="kv-row"><span>Total Amount Paid (6M)</span><strong id="si-total-paid">--</strong></div>
+                <div class="kv-row"><span>Latest Bill / Due</span><span class="pill red" id="si-total-due">--</span></div>
+                <div class="kv-row"><span>Payment Variability (Std. Dev.)</span><strong id="si-std">--</strong></div>
+              </div>
+            </div>
+
+            <!-- Risk & Recommendation -->
+            <div class="card">
+              <div class="card-title-icon">Risk &amp; Recommendation</div>
+              <div class="risk-top-row">
+                <div>
+                  <div class="muted-label">Predicted Risk</div>
+                  <span class="pill green" id="sr-risk-pill">--</span>
+                </div>
+                <div class="divider-v"></div>
+                <div>
+                  <div class="muted-label">Approval Probability</div>
+                  <div class="approval-prob gold-text" id="sr-approval-prob">--</div>
+                </div>
+              </div>
+              <div class="rec-box">
+                <div class="rec-title">Recommendation</div>
+                <p id="sr-recommendation">Select or fetch an applicant to view model recommendation and top SHAP risk factors.</p>
+                <ul class="shap-list" id="sr-shap-reasons"></ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Past Payments History -->
+          <div class="card">
+            <div class="card-title-icon">Past Payments History</div>
+            <div class="table-wrap">
+              <table class="data-table" id="single-history-table">
+                <thead>
+                  <tr><th>Month</th><th>Due Amount (₹)</th><th>Paid Amount (₹)</th><th>Repayment Code</th><th>Status</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 3: BULK APPLICANT PROCESSING -->
+        <section class="view" id="view-bulk">
+          <!-- 4-Step Stepper -->
+          <div class="stepper" id="bulk-stepper">
+            <div class="step active" data-step="1"><span>1</span> Upload CSV</div>
+            <div class="step-line"></div>
+            <div class="step" data-step="2"><span>2</span> Run Model</div>
+            <div class="step-line"></div>
+            <div class="step" data-step="3"><span>3</span> View Results</div>
+            <div class="step-line"></div>
+            <div class="step" data-step="4"><span>4</span> Send Emails</div>
+          </div>
+
+          <!-- Upload & Model Action -->
+          <div class="grid-upload-action">
+            <div class="card upload-card">
+              <div class="dropzone" id="csv-dropzone">
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#d49b28" stroke-width="1.6"><path d="M12 16V7m0 0-3.5 3.5M12 7l3.5 3.5"/><path d="M20 16.5A4.5 4.5 0 0 0 17.5 8h-1.26A6 6 0 1 0 5 14.5"/></svg>
+                <div>
+                  <div class="drop-title">Upload Applicant CSV</div>
+                  <div class="hint">Drag &amp; drop your file here or click to browse (CSV, up to 10,000 rows)</div>
+                  <div class="drop-btns">
+                    <label class="btn outline small" for="csv-file-input">Choose File</label>
+                    <button type="button" class="btn ghost small" id="load-sample-csv-btn">Load Sample CSV (15 rows)</button>
+                    <input type="file" id="csv-file-input" accept=".csv,text/csv" hidden>
+                  </div>
+                </div>
+              </div>
+              <div class="file-chip" id="csv-file-chip">
+                <div>
+                  <div class="file-name" id="csv-file-name">sample_applications_with_emails.csv (demo)</div>
+                  <div class="hint" id="csv-file-meta">5 demo rows loaded</div>
+                </div>
+                <button class="icon-clear" id="clear-csv-btn" title="Clear CSV">&times;</button>
+              </div>
+            </div>
+
+            <div class="card action-card">
+              <div class="card-title-icon">Model &amp; Action</div>
+              <label class="muted-label" for="bulk-model-select">Prediction Model</label>
+              <div class="action-row">
+                <select id="bulk-model-select" class="input">
+                  <option value="xgboost">Credit Default (XGBoost)</option>
+                </select>
+                <button class="btn gold" id="run-bulk-btn">Run Prediction</button>
+                <button class="btn outline" id="export-bulk-btn" title="Download scored CSV">Export CSV</button>
+              </div>
+              <div class="hint" id="bulk-status-text">Ready to score uploaded CSV rows via /api/predict/batch.</div>
+            </div>
+          </div>
+
+          <!-- Prediction Summary -->
+          <div class="card summary-card">
+            <div class="summary-title">Prediction Summary</div>
+            <div class="summary-stats">
+              <div class="stat-item">
+                <span class="stat-icon">👥</span>
+                <div>
+                  <div class="hint">Total Applicants</div>
+                  <div class="stat-num" id="bulk-total-count">0</div>
+                </div>
+              </div>
+              <div class="stat-item">
+                <span class="stat-icon red-text">⚠</span>
+                <div>
+                  <div class="hint">Predicted Default</div>
+                  <div class="stat-num red-text" id="bulk-default-count">0 <span class="stat-pct" id="bulk-default-pct">(0%)</span></div>
+                </div>
+              </div>
+              <div class="stat-item">
+                <span class="stat-icon green-text">✔</span>
+                <div>
+                  <div class="hint">Predicted No Default</div>
+                  <div class="stat-num green-text" id="bulk-nodefault-count">0 <span class="stat-pct" id="bulk-nodefault-pct">(0%)</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results Table + Applicant Details Panel -->
+          <div class="grid-bulk-results">
+            <div class="card">
+              <div class="tabs-row">
+                <button class="tab-btn active" data-bulk-tab="default" id="tab-default-btn">Default Applicants (0)</button>
+                <button class="tab-btn" data-bulk-tab="nodefault" id="tab-nodefault-btn">No Default Applicants (0)</button>
+              </div>
+
+              <div class="filter-row">
+                <input type="text" id="bulk-search-input" class="input" aria-label="Search bulk applicants" placeholder="Search by Customer ID, Name...">
+              </div>
+
+              <div class="table-wrap">
+                <table class="data-table" id="bulk-table">
+                  <thead>
+                    <tr>
+                      <th><input type="checkbox" id="bulk-select-all" aria-label="Select all visible applicants"></th>
+                      <th>Customer ID</th>
+                      <th>Applicant Name</th>
+                      <th>Credit Score</th>
+                      <th>Due Amount (₹)</th>
+                      <th>Due Date</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+
+              <div class="pagination-row">
+                <div class="hint">
+                  Rows per page:
+                  <select id="bulk-page-size" class="input compact">
+                    <option value="5" selected>5</option>
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                  </select>
+                </div>
+                <div class="page-controls" id="bulk-pagination"></div>
+              </div>
+            </div>
+
+            <!-- Right-hand Applicant Details -->
+            <div class="card">
+              <div class="card-title-icon">Applicant Details</div>
+              <div class="detail-head">
+                <strong id="bulk-detail-title">Select an applicant</strong>
+                <span class="pill red" id="bulk-detail-pill">--</span>
+              </div>
+
+              <div class="detail-top-grid">
+                <div class="gauge-wrap small-gauge">
+                  <svg class="gauge-svg" viewBox="0 0 220 130">
+                    <path d="M 22 110 A 88 88 0 0 1 198 110" fill="none" stroke="#262a35" stroke-width="14" stroke-linecap="round"/>
+                    <path id="bulk-gauge-arc" d="M 22 110 A 88 88 0 0 1 198 110" fill="none" stroke="url(#gaugeGradSingle)" stroke-width="14" stroke-linecap="round" stroke-dasharray="276" stroke-dashoffset="138"/>
+                  </svg>
+                  <div class="gauge-center">
+                    <div class="gauge-score" id="bulk-detail-score">--</div>
+                    <div class="gauge-max">/ 900</div>
+                  </div>
+                </div>
+                <div class="kv-list compact">
+                  <div class="kv-row"><span>Risk Category</span><span class="pill red" id="bd-risk">--</span></div>
+                  <div class="kv-row"><span>Outstanding Due</span><strong id="bd-due">--</strong></div>
+                  <div class="kv-row"><span>Due Date</span><strong id="bd-date">--</strong></div>
+                  <div class="kv-row"><span>Default Prob.</span><span class="pill amber" id="bd-prob">--</span></div>
+                  <div class="kv-row"><span>Limit Action</span><strong class="gold-text" id="bd-limit-action">--</strong></div>
+                </div>
+              </div>
+
+              <div class="sub-heading">Last 6 Months Transaction History</div>
+              <div class="table-wrap">
+                <table class="data-table compact" id="bulk-tx-table">
+                  <thead>
+                    <tr><th>Month</th><th>Type</th><th>Amount (₹)</th><th>Status</th></tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Automated Email Reminder Bar -->
+          <div class="card bottom-action-bar">
+            <div>
+              <div class="bar-title">Automated Email Reminder</div>
+              <div class="hint">Send payment reminders to selected applicants with their due amount and due date.</div>
+            </div>
+            <div class="radio-group">
+              <label class="radio-pill"><input type="radio" name="bulk-email-target" value="selected" checked> <span id="bulk-target-selected">Selected Applicants (0)</span></label>
+              <label class="radio-pill"><input type="radio" name="bulk-email-target" value="default"> <span id="bulk-target-default">All Default (0)</span></label>
+              <label class="radio-pill"><input type="radio" name="bulk-email-target" value="nodefault"> <span id="bulk-target-nodefault">All No Default (0)</span></label>
+            </div>
+            <button class="btn gold" id="bulk-send-email-btn">Send Email Reminder</button>
+          </div>
+          <div class="hint status-line" id="bulk-email-feedback"></div>
+        </section>
+
+        <!-- VIEW 4: APPLICANTS DIRECTORY -->
+        <section class="view" id="view-applicants">
+          <div class="card">
+            <div class="card-header">
+              <h3>All Loaded Applicants</h3>
+              <div class="filter-row inline">
+                <input type="text" id="dir-search" class="input" placeholder="Search ID, Name, Email...">
+                <select id="dir-risk-filter" class="input">
+                  <option value="ALL">All Risk Levels</option>
+                  <option value="HIGH">High Risk</option>
+                  <option value="MEDIUM">Medium Risk</option>
+                  <option value="LOW">Low Risk</option>
+                </select>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="dir-table">
+                <thead>
+                  <tr><th>Customer ID</th><th>Name</th><th>Email</th><th>Credit Score</th><th>Default Prob.</th><th>Risk</th><th>Actions</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 5: AUTOMATED EMAILS -->
+        <section class="view" id="view-emails">
+          <div class="card">
+            <div class="tabs-row">
+              <button class="tab-btn active" data-email-tab="pending" id="tab-pending-emails">Pending Reminders (0)</button>
+              <button class="tab-btn" data-email-tab="sent" id="tab-sent-emails">Sent Emails (0)</button>
+            </div>
+
+            <div id="email-pending-section">
+            <div class="grid-emails">
+              <div>
+                <div class="filter-row">
+                  <select id="email-risk-filter" class="input" aria-label="Filter by risk level">
+                    <option value="ALL">All Risk Levels</option>
+                    <option value="HIGH">High</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="LOW">Low</option>
+                  </select>
+                  <input type="text" id="email-search-input" class="input" aria-label="Search email recipients" placeholder="Search by Applicant ID or Name">
+                  <label class="checkbox-inline"><input type="checkbox" id="email-select-all"> Select All</label>
+                </div>
+
+                <div class="table-wrap">
+                  <table class="data-table" id="email-applicants-table">
+                    <thead>
+                      <tr><th></th><th>Applicant ID</th><th>Name</th><th>Due Amount (₹)</th><th>Due Date</th><th>Risk</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Email Preview -->
+              <div class="preview-panel">
+                <div class="card-title-icon">Email Preview</div>
+                <select id="email-template-select" class="input" aria-label="Select email template">
+                  <option value="application_submitted">Payment / Application Reminder</option>
+                  <option value="missing_documents">Missing Documents Request</option>
+                  <option value="status_change">Status Change Update</option>
+                  <option value="final_decision">Final Decision Notice</option>
+                  <option value="high_risk_review">High-Risk Employee Alert</option>
+                </select>
+                <div class="email-preview-paper" id="email-preview-box"></div>
+              </div>
+            </div>
+
+            <div class="send-bar">
+              <span class="hint">Send Emails To:</span>
+              <div class="radio-group">
+                <label class="radio-pill"><input type="radio" name="email-page-target" value="selected" checked> <span id="ep-target-selected">Selected (0)</span></label>
+                <label class="radio-pill"><input type="radio" name="email-page-target" value="high"> <span id="ep-target-high">All High Risk (0)</span></label>
+                <label class="radio-pill"><input type="radio" name="email-page-target" value="all"> <span id="ep-target-all">All Eligible (0)</span></label>
+              </div>
+              <button class="btn gold" id="email-page-send-btn">Send Emails</button>
+            </div>
+            <div class="hint status-line" id="email-page-feedback"></div>
+            </div>
+          </div>
+
+          <div class="card" id="email-logs-card">
+            <div class="card-header">
+              <h3>Email Activity Log</h3>
+              <button class="btn ghost small" id="refresh-logs-btn">Refresh</button>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="email-log-table">
+                <thead>
+                  <tr><th>Sent At</th><th>Recipient</th><th>Event Type</th><th>Message</th><th>Status</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 6: REPORTS -->
+        <section class="view" id="view-reports">
+          <div class="card">
+            <div class="card-header">
+              <h3>Cost Matrix (FN / FP Weights)</h3>
+              <button class="btn gold small" id="apply-costs-btn">Recalculate</button>
+            </div>
+            <div class="cost-grid">
+              <label>True Negative (TN)<input type="number" id="cost-tn" class="input" value="0" min="0" step="0.5"></label>
+              <label>False Positive (FP)<input type="number" id="cost-fp" class="input" value="1" min="0" step="0.5"></label>
+              <label>False Negative (FN)<input type="number" id="cost-fn" class="input" value="5" min="0" step="0.5"></label>
+              <label>True Positive (TP)<input type="number" id="cost-tp" class="input" value="0" min="0" step="0.5"></label>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title-icon">Model Comparison (Test Set)</div>
+            <div class="table-wrap"><table class="data-table" id="compare-table"></table></div>
+            <p class="hint" id="baselines"></p>
+          </div>
+
+          <div class="grid-2-equal">
+            <div class="card">
+              <div class="card-title-icon">Threshold vs. Total Cost</div>
+              <div class="chart-box"><canvas id="cost-chart"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-title-icon">Precision-Recall Curves</div>
+              <div class="chart-box"><canvas id="pr-chart"></canvas></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title-icon">Transparent Decision Rules</div>
+            <p class="hint" id="policy-text">Loading policy...</p>
+            <div class="table-wrap"><table class="data-table" id="tree-rules-table"></table></div>
+          </div>
+        </section>
+
+        <!-- VIEW 7: SETTINGS -->
+        <section class="view" id="view-settings">
+          <div class="grid-2-equal">
+            <div class="card">
+              <div class="card-title-icon">Employee Authorization</div>
+              <p class="hint">Set your `X-Employee-Key` (must match `EMPLOYEE_API_KEY` in `.env`) to authorize sending automated emails.</p>
+              <label class="muted-label" for="settings-emp-key">Employee API Key</label>
+              <div class="action-row">
+                <input type="password" id="settings-emp-key" class="input" placeholder="Enter X-Employee-Key">
+                <button class="btn gold" id="save-emp-key-btn">Save Key</button>
+              </div>
+              <div class="hint status-line" id="settings-key-msg"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-title-icon">Backend, MySQL &amp; SMTP Health</div>
+              <div class="kv-list" id="settings-health-kv">
+                <div class="kv-row"><span>API Service</span><strong id="set-api-status">Checking...</strong></div>
+                <div class="kv-row"><span>ML Model Loaded</span><strong id="set-model-status">--</strong></div>
+                <div class="kv-row"><span>MySQL Connected</span><strong id="set-mysql-status">--</strong></div>
+                <div class="kv-row"><span>SMTP Configured</span><strong id="set-smtp-status">--</strong></div>
+                <div class="kv-row"><span>SMTP Host / Port</span><strong id="set-smtp-host">--</strong></div>
+              </div>
+              <button class="btn outline small" id="refresh-health-btn" style="margin-top:12px;">Refresh Status</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Floating Abhaya Risk Assistant -->
+  <div class="assistant-widget" id="assistant-widget">
+    <div class="assistant-panel hidden" id="assistant-panel" role="dialog" aria-label="Abhaya Risk Assistant">
+      <div class="assistant-head">
         <div>
-          <h3>Logistic regression: strongest coefficients</h3>
-          <p class="hint">On standardized inputs. Positive means higher default risk.</p>
-          <table id="logreg-table" class="data"></table>
+          <div class="assistant-title">Abhaya Risk Assistant</div>
+          <div class="hint" style="font-size:11px;">Thresholds · Cost Matrix · TreeSHAP · Email Policy</div>
         </div>
-        <div>
-          <h3>XGBoost: most important features</h3>
-          <table id="xgb-table" class="data"></table>
-        </div>
+        <button class="icon-clear" id="assistant-close-btn" aria-label="Close assistant">&times;</button>
       </div>
-    </section>
-  </main>
+      <div class="assistant-chips">
+        <button type="button" class="chip-btn" data-chat-q="Why is the threshold 0.35 instead of 0.50?">Threshold 0.35?</button>
+        <button type="button" class="chip-btn" data-chat-q="How does TreeSHAP explain risk?">TreeSHAP</button>
+        <button type="button" class="chip-btn" data-chat-q="What is the email notification policy?">Email Policy</button>
+      </div>
+      <div id="chat-reply" class="chat-reply hidden"></div>
+      <div class="chat-row">
+        <input type="text" id="chat-input" class="input" aria-label="Ask Abhaya Risk Assistant" placeholder="Ask a risk or policy question...">
+        <button class="btn gold small" id="chat-send-btn">Ask</button>
+      </div>
+    </div>
+    <button class="assistant-fab" id="assistant-toggle-btn" aria-label="Open Abhaya Risk Assistant" title="Abhaya Risk Assistant">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>Ask Abhaya</span>
+    </button>
+  </div>
 
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
   <script src="app.js"></script>
 </body>
 </html>
