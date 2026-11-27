@@ -4,7 +4,7 @@ Validates incoming features, ensures exact ordering according to the feature man
 computes engineered features when raw inputs are provided, and generates default probabilities.
 """
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -106,3 +106,101 @@ def predict_probability(
         "features_df": X,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def _impute_record(rec: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Impute missing / null / empty-string values in a raw record using
+    domain-safe defaults for each feature group.
+    Returns (imputed_dict, list_of_imputed_column_names).
+    """
+    # Sensible median-ish defaults derived from the UCI credit dataset
+    DEFAULTS: Dict[str, float] = {
+        "LIMIT_BAL": 140000.0,  # median credit limit
+        "SEX":        1.0,
+        "EDUCATION":  2.0,       # university
+        "MARRIAGE":   2.0,       # single
+        "AGE":        35.0,
+        "PAY_0":      0.0,       # on-time / revolving
+        "PAY_2":      0.0,
+        "PAY_3":      0.0,
+        "PAY_4":      0.0,
+        "PAY_5":      0.0,
+        "PAY_6":      0.0,
+        "BILL_AMT1":  0.0,
+        "BILL_AMT2":  0.0,
+        "BILL_AMT3":  0.0,
+        "BILL_AMT4":  0.0,
+        "BILL_AMT5":  0.0,
+        "BILL_AMT6":  0.0,
+        "PAY_AMT1":   0.0,
+        "PAY_AMT2":   0.0,
+        "PAY_AMT3":   0.0,
+        "PAY_AMT4":   0.0,
+        "PAY_AMT5":   0.0,
+        "PAY_AMT6":   0.0,
+    }
+    out = dict(rec)
+    imputed_cols = []
+    for col in RAW_COLUMNS:
+        v = rec.get(col)
+        # Treat None, "", "null", "nan", "na", "n/a" as missing
+        if v is None or (isinstance(v, str) and v.strip().lower() in ("", "null", "nan", "na", "n/a")):
+            out[col] = DEFAULTS[col]
+            imputed_cols.append(col)
+        else:
+            try:
+                out[col] = float(v)
+            except (TypeError, ValueError):
+                out[col] = DEFAULTS[col]
+                imputed_cols.append(col)
+    return out, imputed_cols
+
+
+def predict_batch_probabilities(
+    records: List[Dict[str, Any]],
+    model_name: str = "xgboost",
+) -> Tuple[List[Optional[float]], List[str]]:
+    """Vectorized batch probability prediction for up to 10,000+ rows.
+
+    Null / missing feature values are imputed with domain-safe defaults rather
+    than being skipped, so every uploaded row receives a prediction.
+    Imputation details are surfaced via the ``imputed_count`` and ``errors``
+    fields in the response.
+    """
+    manifest = get_feature_manifest()
+    model_obj = get_model(model_name)
+    if model_obj is None:
+        raise ValueError(f"Model '{model_name}' not loaded.")
+
+    probs: List[Optional[float]] = [None] * len(records)
+    errors: List[str] = []
+    valid_indices: List[int] = []
+    raw_rows: List[Dict[str, float]] = []
+    imputed_count: int = 0
+
+    for idx, rec in enumerate(records):
+        try:
+            imputed_rec, imputed_cols = _impute_record(rec)
+            if imputed_cols:
+                imputed_count += 1
+                if len(errors) < 10:
+                    errors.append(
+                        f"Row {idx + 1}: null values in [{', '.join(imputed_cols[:5])}] "
+                        f"→ imputed with dataset defaults"
+                    )
+            raw_rows.append({col: imputed_rec[col] for col in RAW_COLUMNS})
+            valid_indices.append(idx)
+        except Exception as exc:
+            if len(errors) < 10:
+                errors.append(f"Row {idx + 1}: skipped — {exc}")
+
+    if valid_indices:
+        raw_df = pd.DataFrame(raw_rows)
+        cleaned_df = clean_categories(raw_df)
+        full_df = add_engineered_features(cleaned_df)[manifest]
+        batch_probs = model_obj.predict_proba(full_df)[:, 1]
+        for pos, orig_idx in enumerate(valid_indices):
+            probs[orig_idx] = round(float(batch_probs[pos]), 4)
+
+    return probs, errors, imputed_count

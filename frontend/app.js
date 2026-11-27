@@ -5,7 +5,7 @@ const VIEW_META = {
   single: ["Single Applicant Assessment", "View applicant's credit score, payment history and loan eligibility"],
   bulk: ["Bulk Applicant Processing", "Upload applicant CSV, predict default risk and manage collections"],
   applicants: ["Applicants Directory", "Browse demo and uploaded applicants scored by XGBoost"],
-  emails: ["Automated Emails", "Send personalised payment reminders and workflow notifications"],
+  emails: ["Automated Emails", "Send Abhaya workflow notifications and monitor SMTP delivery"],
   reports: ["Model & Cost Reports", "Compare models, tune FN/FP costs and inspect decision rules"],
   settings: ["Portal Settings", "Configure Employee API Key and inspect MySQL, ML & SMTP health"],
 };
@@ -119,8 +119,12 @@ function switchView(viewName) {
   document.getElementById("page-title").textContent = title;
   document.getElementById("page-subtitle").textContent = sub;
 
-  if (viewName === "reports" && !state.charts.cost) {
-    loadReports();
+  if (viewName === "reports") {
+    if (!state.charts.cost) loadReports();
+    else {
+      state.charts.cost.resize();
+      if (state.charts.pr) state.charts.pr.resize();
+    }
   }
   if (viewName === "emails") {
     renderEmailView();
@@ -175,6 +179,9 @@ function parseCSV(text) {
       }
     });
     rows.push(obj);
+  }
+  if (lines.length - 1 > 10000) {
+    showToast(`CSV truncated to first 10,000 rows (${lines.length - 1} total in file).`, "info");
   }
   return rows;
 }
@@ -251,7 +258,7 @@ function renderDashboard() {
   const priorityList = [...state.applicants].sort((a, b) => (b.default_probability * b.due_amount) - (a.default_probability * a.due_amount));
   const tbody = document.querySelector("#dash-snapshot-table tbody");
   tbody.innerHTML = priorityList.slice(0, 5).map((a) => `
-    <tr data-open-single="${esc(a.customer_id)}" tabindex="0">
+    <tr data-open-single="${esc(a.customer_id)}" data-open-email="${esc(a.email)}" tabindex="0">
       <td>${esc(a.customer_id)}</td>
       <td>${esc(a.customer_name)}</td>
       <td><strong>${a.score}</strong></td>
@@ -262,9 +269,10 @@ function renderDashboard() {
 
   tbody.querySelectorAll("tr[data-open-single]").forEach((tr) => {
     const open = () => {
-      document.getElementById("single-id-input").value = tr.dataset.openSingle;
+      const targetKey = tr.dataset.openEmail || tr.dataset.openSingle;
+      document.getElementById("single-id-input").value = targetKey;
       switchView("single");
-      loadSingleById(tr.dataset.openSingle);
+      loadSingleById(targetKey);
     };
     tr.addEventListener("click", open);
     tr.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
@@ -362,7 +370,9 @@ async function loadSingleById(idOrKind) {
   if (!query) return;
 
   let app = state.applicants.find(
-    (a) => a.customer_id.toLowerCase() === query.toLowerCase() || a.application_id.toLowerCase() === query.toLowerCase()
+    (a) =>
+      (a.email && a.email.toLowerCase() === query.toLowerCase()) ||
+      a.customer_id.toLowerCase() === query.toLowerCase()
   );
 
   let reasons = [];
@@ -399,6 +409,7 @@ async function loadSingleById(idOrKind) {
       app.default_probability = pred.default_probability;
       app.score = probToScore(pred.default_probability);
       app.risk_classification = pred.risk_classification;
+      app.flagged = Boolean(pred.flagged);
       app.suggested_action = pred.suggested_action;
     } catch (_) {}
   } else if (["low", "medium", "high"].includes(query.toLowerCase())) {
@@ -431,7 +442,7 @@ async function loadSingleById(idOrKind) {
       return;
     }
   } else {
-    showToast(`Applicant "${query}" not found in loaded/demo records. Try an ID from Bulk Processing or click Low/Medium/High.`, "error");
+    showToast(`Applicant "${query}" not found. Enter an email from loaded/demo records or click Low/Medium/High.`, "error");
     return;
   }
 
@@ -452,12 +463,12 @@ function renderSingleApplicant(app, reasons = []) {
     badge.textContent = "High Risk";
   }
 
-  document.getElementById("sd-id").textContent = app.customer_id;
+  state.currentSingleApp = app;
+  document.getElementById("sd-email").textContent = app.email || "Not provided";
   document.getElementById("sd-name").textContent = app.customer_name;
   document.getElementById("sd-age").textContent = app.age ? `${app.age} Years` : "--";
   document.getElementById("sd-edu").textContent = EDU_LABELS[app.education] || "University";
   document.getElementById("sd-limit").textContent = fmtINR(app.limit_bal);
-  document.getElementById("sd-email").textContent = app.email || "Not provided";
 
   const approvalProb = Math.max(0, 1 - app.default_probability);
   const currentLimit = Number(app.limit_bal || 0);
@@ -469,17 +480,17 @@ function renderSingleApplicant(app, reasons = []) {
 
   if (app.risk_classification === "HIGH" || app.score < 560) {
     recLimit = Math.round(currentLimit * 0.5);
-    const reducedEmi = Math.max(1000, Math.round((app.due_amount || currentLimit * 0.1) / 6));
+    const reducedEmi = app.due_amount > 0 ? Math.max(1000, Math.round(app.due_amount / 6)) : 0;
     limitLabel = "Reduced Credit Limit (-50%)";
     payLabel = "Reduced Monthly Payment";
-    payValue = `${fmtINR(reducedEmi)} / mo`;
+    payValue = reducedEmi > 0 ? `${fmtINR(reducedEmi)} / mo` : "₹ 0 (No Due)";
     limitNote = `Low credit score (${app.score}/900): reduce credit limit from ${fmtINR(currentLimit)} to ${fmtINR(recLimit)} and lower monthly payment to prevent next-cycle default.`;
   } else if (app.risk_classification === "MEDIUM" || app.score < 700) {
     recLimit = Math.round(currentLimit * 0.8);
-    const reducedEmi = Math.max(1500, Math.round((app.due_amount || currentLimit * 0.1) / 4));
+    const reducedEmi = app.due_amount > 0 ? Math.max(1500, Math.round(app.due_amount / 4)) : 0;
     limitLabel = "Capped Credit Limit (-20%)";
     payLabel = "Adjusted Monthly Payment";
-    payValue = `${fmtINR(reducedEmi)} / mo`;
+    payValue = reducedEmi > 0 ? `${fmtINR(reducedEmi)} / mo` : "₹ 0 (No Due)";
     limitNote = `Moderate risk (${app.score}/900): cap credit limit at ${fmtINR(recLimit)} and monitor monthly payments.`;
   } else {
     recLimit = Math.round(currentLimit * (0.8 + approvalProb * 0.4));
@@ -707,7 +718,13 @@ function setStepper(stepNum) {
 async function runBulkPrediction(records, sourceName = "uploaded.csv") {
   if (!records.length) {
     document.getElementById("bulk-status-text").textContent = "No valid rows found in CSV.";
+    showToast("No valid rows found in CSV.", "error");
     return;
+  }
+  const runBtn = document.getElementById("run-bulk-btn");
+  if (runBtn) {
+    runBtn.disabled = true;
+    runBtn.textContent = "Scoring...";
   }
   setStepper(2);
   document.getElementById("bulk-status-text").textContent = `Scoring ${records.length} rows with XGBoost...`;
@@ -718,21 +735,34 @@ async function runBulkPrediction(records, sourceName = "uploaded.csv") {
     const nonDefList = (res.table_predicted_non_default || []).map((r, i) => normalizeApplicant(r, defList.length + i));
     state.applicants = [...defList, ...nonDefList];
     state.bulkSelectedIds.clear();
+    state.bulkTab = "default";
+    document.querySelectorAll("[data-bulk-tab]").forEach((b) => {
+      b.classList.toggle("active", b.dataset.bulkTab === "default");
+    });
     state.bulkPage = 1;
     state.activeBulkId = state.applicants[0]?.customer_id || null;
 
     document.getElementById("csv-file-name").textContent = sourceName;
     document.getElementById("csv-file-meta").textContent = `${state.applicants.length} rows scored`;
     const skippedMsg = res.skipped_count ? ` (${res.skipped_count} invalid rows skipped)` : "";
-    document.getElementById("bulk-status-text").textContent = `Completed: ${defList.length} predicted default, ${nonDefList.length} no default${skippedMsg}.`;
+    const imputedMsg = res.imputed_count ? ` · ${res.imputed_count} rows had null values — imputed with dataset defaults` : "";
+    document.getElementById("bulk-status-text").textContent = `Completed: ${defList.length} predicted default, ${nonDefList.length} no default${skippedMsg}${imputedMsg}.`;
 
     setStepper(3);
     renderBulkView();
     renderDashboard();
-    showToast(`Scored ${state.applicants.length} applicants (${defList.length} default, ${nonDefList.length} safe)${skippedMsg}.`, res.skipped_count ? "info" : "success");
+    showToast(`Scored ${state.applicants.length} applicants (${defList.length} default, ${nonDefList.length} no default)${skippedMsg}.`, res.skipped_count ? "info" : "success");
+    if (res.imputed_count) {
+      showToast(`⚠️ ${res.imputed_count} row(s) had null/missing values — imputed with dataset defaults before scoring.`, "info");
+    }
   } catch (err) {
     document.getElementById("bulk-status-text").textContent = `Batch scoring failed: ${err.message}`;
     showToast(`Batch scoring failed: ${err.message}`, "error");
+  } finally {
+    if (runBtn) {
+      runBtn.disabled = false;
+      runBtn.textContent = "▶ Start Prediction";
+    }
   }
 }
 
@@ -799,16 +829,32 @@ function renderBulkView() {
     });
   });
 
-  // Pagination
+  // Windowed Pagination (prevents 2000+ DOM buttons on 10k-row CSVs)
   const pagEl = document.getElementById("bulk-pagination");
   pagEl.innerHTML = "";
+  const pages = [];
   for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || Math.abs(p - state.bulkPage) <= 1) {
+      pages.push(p);
+    } else if (pages[pages.length - 1] !== "...") {
+      pages.push("...");
+    }
+  }
+  pages.forEach((p) => {
+    if (p === "...") {
+      const span = document.createElement("span");
+      span.className = "hint";
+      span.style.padding = "4px 6px";
+      span.textContent = "…";
+      pagEl.appendChild(span);
+      return;
+    }
     const btn = document.createElement("button");
     btn.className = `page-btn ${p === state.bulkPage ? "active" : ""}`;
     btn.textContent = String(p);
     btn.addEventListener("click", () => { state.bulkPage = p; renderBulkView(); });
     pagEl.appendChild(btn);
-  }
+  });
 
   // Sync Select-All checkbox for current filtered list
   const selectAllCb = document.getElementById("bulk-select-all");
@@ -892,7 +938,7 @@ function renderDirectory() {
       <td>${(a.default_probability * 100).toFixed(1)}%</td>
       <td><span class="pill ${riskPillClass(a.risk_classification)}">${esc(a.risk_classification)}</span></td>
       <td>
-        <button class="btn ghost small" data-assess="${esc(a.customer_id)}">Assess</button>
+        <button class="btn ghost small" data-assess="${esc(a.email || a.customer_id)}">Assess</button>
       </td>
     </tr>
   `).join("") || `<tr><td colspan="7" class="hint">No matching applicants.</td></tr>`;
@@ -931,10 +977,14 @@ function renderEmailView() {
   const logsCard = document.getElementById("email-logs-card");
   if (pendingSec && logsCard) {
     pendingSec.style.display = state.emailTab === "pending" ? "block" : "none";
-    logsCard.style.display = state.emailTab === "sent" ? "block" : "block";
+    logsCard.style.display = state.emailTab === "sent" ? "block" : "none";
   }
 
   const rows = getEmailFilteredRows();
+  const selectAllEmailCb = document.getElementById("email-select-all");
+  if (selectAllEmailCb) {
+    selectAllEmailCb.checked = rows.length > 0 && rows.every((a) => state.emailSelectedIds.has(a.customer_id));
+  }
 
   const tbody = document.querySelector("#email-applicants-table tbody");
   tbody.innerHTML = rows.map((a) => {
@@ -969,28 +1019,37 @@ function renderEmailPreview() {
     || { customer_name: "Applicant", application_id: "APP-001", due_amount: 15000, due_date: "05 Dec 2026", risk_classification: "HIGH" };
 
   const tpl = document.getElementById("email-template-select").value;
-  let subject = `Payment & Application Update (${app.application_id})`;
-  let body = `We have received your credit application (<strong>${esc(app.application_id)}</strong>). Due amount: <strong>${esc(fmtINR(app.due_amount))}</strong> on <strong>${esc(app.due_date)}</strong>.`;
+  const safeName = esc(app.customer_name || "Customer");
+  const safeAppId = esc(app.application_id || "N/A");
+  const safeRisk = esc(app.risk_classification || "HIGH");
+
+  let subject = `Application Received — Reference ${app.application_id || "N/A"}`;
+  let greeting = `Dear <strong>${safeName}</strong>,`;
+  let body = `Thank you for submitting your credit application (Reference: <strong>${safeAppId}</strong>) with Abhaya. Our underwriting and risk review team has received your submission and will notify you promptly as your application progresses.`;
 
   if (tpl === "missing_documents") {
-    subject = `Action Required: Additional Documents Needed (${app.application_id})`;
-    body = `To continue processing application <strong>${esc(app.application_id)}</strong>, please provide proof of identity and recent income verification.`;
+    subject = `Action Required: Supporting Documents Needed (${app.application_id || "N/A"})`;
+    body = `To continue processing your credit application (Reference: <strong>${safeAppId}</strong>), please provide the following supporting documents:<ul><li>Proof of identity</li><li>Recent income verification</li></ul>Kindly upload the requested items through your Abhaya portal at your earliest convenience.`;
   } else if (tpl === "status_change") {
-    subject = `Application Status Update (${app.application_id}): UNDER_REVIEW`;
-    body = `The status of your application (<strong>${esc(app.application_id)}</strong>) has been updated to <strong>UNDER_REVIEW</strong>.`;
+    subject = `Application Status Update (${app.application_id || "N/A"}): UNDER_REVIEW`;
+    body = `The status of your credit application (Reference: <strong>${safeAppId}</strong>) has been updated to: <strong>UNDER_REVIEW</strong>. Please sign in to your Abhaya portal to review the latest details and any next steps.`;
   } else if (tpl === "final_decision") {
-    subject = `Final Decision for Application ${app.application_id}`;
-    body = `A final decision has been recorded for your application (<strong>${esc(app.application_id)}</strong>). Please log in to Abhaya for details.`;
+    subject = `Final Decision Notice — Application ${app.application_id || "N/A"}: REVIEWED`;
+    body = `A final decision has been recorded for your credit application (Reference: <strong>${safeAppId}</strong>): <strong>REVIEWED</strong>. Please sign in to your Abhaya portal to view the complete decision summary.`;
+  } else if (tpl === "credit_limit_adjustment") {
+    subject = `Important Account Notice: Credit Limit Adjustment (${app.application_id})`;
+    body = `Following a recent review of your account (<strong>${esc(app.application_id)}</strong>), we noted that your credit score is currently below our standard benchmark. To help keep your repayments manageable, we are <strong>temporarily decreasing your credit limit</strong>. Please continue making on-time payments and keeping utilization low to improve your credit score for future limit reviews.`;
   } else if (tpl === "high_risk_review") {
-    subject = `[Review Required] High-Risk Application ${app.application_id}`;
-    body = `Application <strong>${esc(app.application_id)}</strong> has been flagged as <strong>${esc(app.risk_classification)}</strong> risk and requires employee review.`;
+    subject = `[Review Required] High-Risk Application ${app.application_id || "N/A"}`;
+    greeting = `Dear <strong>Risk Review Team</strong>,`;
+    body = `Application <strong>${safeAppId}</strong> has been classified as <strong>${safeRisk}</strong> risk and requires manual underwriting review. Please open the Abhaya internal review queue to inspect the application and record your assessment.`;
   }
 
   document.getElementById("email-preview-box").innerHTML = `
     <div class="email-preview-subject">Subject: ${esc(subject)}</div>
-    <p>Dear <strong>${esc(app.customer_name)}</strong>,</p>
-    <p style="margin:10px 0;">${body}</p>
-    <p>Thank you,<br><strong>Abhaya Collections Team</strong></p>
+    <p>${greeting}</p>
+    <div style="margin:10px 0;">${body}</div>
+    <p>Sincerely,<br><strong>Abhaya Risk &amp; Collections Team</strong></p>
   `;
 }
 
@@ -1021,23 +1080,24 @@ async function sendBatchEmails(targets, eventType, feedbackId) {
 
   fb.textContent = `Sending ${withEmail.length} email(s)...`;
   let sent = 0;
+  let suppressed = 0;
   let failed = 0;
   let lastErr = "";
   for (const a of withEmail) {
     try {
-      const res = await apiPost(
-        "/notifications/send",
-        {
-          event_type: eventType,
-          recipient_email: a.email,
-          application_id: a.application_id,
-          customer_name: a.customer_name,
-          risk_classification: a.risk_classification,
-          missing_documents: ["Proof of identity", "Recent income verification"],
-        },
-        { "X-Employee-Key": state.employeeKey }
-      );
+      const payload = {
+        event_type: eventType,
+        application_id: a.application_id,
+        customer_name: a.customer_name,
+        risk_classification: a.risk_classification,
+        missing_documents: ["Proof of identity", "Recent income verification"],
+      };
+      if (eventType !== "high_risk_review") {
+        payload.recipient_email = a.email;
+      }
+      const res = await apiPost("/notifications/send", payload, { "X-Employee-Key": state.employeeKey });
       if (res.success) sent++;
+      else if (res.status === "suppressed") suppressed++;
       else { failed++; lastErr = res.message || "Delivery failed"; }
     } catch (err) {
       failed++;
@@ -1045,19 +1105,24 @@ async function sendBatchEmails(targets, eventType, feedbackId) {
     }
   }
   setStepper(4);
-  const summary = sent === 0 && lastErr ? `Error: ${lastErr}` : `Done: ${sent} sent, ${failed} failed/suppressed.`;
+  const summary = sent === 0 && suppressed === 0 && lastErr
+    ? `Error: ${lastErr}`
+    : `Done: ${sent} sent, ${suppressed} already sent (suppressed), ${failed} failed.`;
   fb.textContent = summary;
-  showToast(summary, sent > 0 ? "success" : "error");
+  showToast(summary, sent > 0 ? "success" : (suppressed > 0 && failed === 0 ? "info" : "error"));
   await loadEmailLogs();
   renderEmailView();
 }
 
 async function loadEmailLogs() {
-  if (!state.employeeKey) return;
+  if (!state.employeeKey) return false;
   try {
     const res = await apiGet("/email/logs?limit=30", { "X-Employee-Key": state.employeeKey });
     state.emailLogs = res.logs || [];
-  } catch (_) {}
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 // ---------- Reports ----------
@@ -1205,16 +1270,35 @@ async function init() {
 
   // Settings key
   const keyInput = document.getElementById("settings-emp-key");
+  const empLabel = document.getElementById("employee-label");
   keyInput.value = state.employeeKey;
+  if (state.employeeKey) empLabel.textContent = "Employee (Key Set)";
+
   document.getElementById("save-emp-key-btn").addEventListener("click", async () => {
     state.employeeKey = keyInput.value.trim();
-    sessionStorage.setItem("abhaya_emp_key", state.employeeKey);
-    document.getElementById("settings-key-msg").textContent = state.employeeKey
-      ? "Employee API key saved for this browser session."
-      : "Employee API key cleared.";
-    showToast(state.employeeKey ? "Employee key saved." : "Employee key cleared.", "success");
-    await loadEmailLogs();
-    renderEmailLogs();
+    if (!state.employeeKey) {
+      sessionStorage.removeItem("abhaya_emp_key");
+      empLabel.textContent = "Employee";
+      document.getElementById("settings-key-msg").textContent = "Employee API key cleared.";
+      showToast("Employee key cleared.", "info");
+      state.emailLogs = [];
+      renderEmailLogs();
+      return;
+    }
+    const ok = await loadEmailLogs();
+    if (ok) {
+      sessionStorage.setItem("abhaya_emp_key", state.employeeKey);
+      empLabel.textContent = "Employee (Verified)";
+      document.getElementById("settings-key-msg").textContent = "Employee API key verified and saved.";
+      showToast("Employee key verified.", "success");
+      renderEmailLogs();
+    } else {
+      sessionStorage.removeItem("abhaya_emp_key");
+      state.employeeKey = "";
+      empLabel.textContent = "Employee";
+      document.getElementById("settings-key-msg").textContent = "Invalid Employee API key (401 Unauthorized).";
+      showToast("Invalid Employee API key.", "error");
+    }
   });
   document.getElementById("refresh-health-btn").addEventListener("click", refreshHealth);
 
@@ -1224,6 +1308,37 @@ async function init() {
   });
   document.getElementById("single-id-input").addEventListener("keydown", (e) => {
     if (e.key === "Enter") loadSingleById(e.target.value);
+  });
+  document.getElementById("single-send-email-btn").addEventListener("click", async () => {
+    const typedEmail = document.getElementById("single-id-input").value.trim();
+    const app = state.currentSingleApp || { customer_name: "Applicant", application_id: "APP-SINGLE", risk_classification: "MEDIUM" };
+    const recipient = (typedEmail.includes("@") ? typedEmail : app.email) || "";
+    if (!recipient.includes("@")) {
+      showToast("Enter a valid email address in Applicant Email first.", "error");
+      return;
+    }
+    if (!state.employeeKey) {
+      showToast("Set your Employee API Key in Settings first.", "error");
+      return;
+    }
+    try {
+      const isLowScore = app.risk_classification === "HIGH" || app.score < 560;
+      const res = await apiPost(
+        "/notifications/send",
+        {
+          event_type: isLowScore ? "credit_limit_adjustment" : "application_submitted",
+          recipient_email: recipient,
+          application_id: app.application_id || "APP-SINGLE",
+          customer_name: app.customer_name || "Applicant",
+          risk_classification: app.risk_classification || "MEDIUM",
+        },
+        { "X-Employee-Key": state.employeeKey }
+      );
+      showToast(res.success ? `Email sent to ${recipient}` : `Email status: ${res.message}`, res.success ? "success" : "info");
+      await loadEmailLogs();
+    } catch (err) {
+      showToast(`Email failed: ${err.message}`, "error");
+    }
   });
   document.querySelectorAll("[data-sample-kind]").forEach((b) => {
     b.addEventListener("click", () => {
@@ -1254,6 +1369,7 @@ async function init() {
           pay_statuses: PAY_KEYS.map((k) => rawObj[k] || 0),
         },
       });
+      document.getElementById("single-id-input").value = app.email || app.customer_id;
       renderSingleApplicant(app, pred.reasons || []);
       showToast(`Scored all 46 features: ${app.risk_classification} Risk (${app.score}/900)`, "success");
     } catch (err) {
@@ -1276,6 +1392,7 @@ async function init() {
         return;
       }
       scoreCustom23(rows[0]);
+      e.target.value = "";
     };
     reader.readAsText(file);
   });
@@ -1286,12 +1403,14 @@ async function init() {
   const handleFile = (file) => {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = async (e) => {
+    reader.onload = (e) => {
       const parsed = parseCSV(String(e.target.result || ""));
       state.rawCsvRecords = parsed;
       document.getElementById("csv-file-name").textContent = file.name;
-      document.getElementById("csv-file-meta").textContent = `${parsed.length} rows · ${(file.size / 1024).toFixed(1)} KB`;
-      await runBulkPrediction(parsed, file.name);
+      document.getElementById("csv-file-meta").textContent = `${parsed.length} rows ready · ${(file.size / 1024).toFixed(1)} KB`;
+      document.getElementById("bulk-status-text").textContent = `Uploaded ${file.name} (${parsed.length} rows). Click ▶ Start Prediction to split Default & No Default.`;
+      setStepper(1);
+      showToast(`Uploaded ${file.name} (${parsed.length} rows). Click ▶ Start Prediction.`, "info");
     };
     reader.readAsText(file);
   };
@@ -1325,16 +1444,21 @@ async function init() {
     state.applicants = [];
     state.rawCsvRecords = [];
     state.bulkSelectedIds.clear();
+    fileInput.value = "";
     document.getElementById("csv-file-name").textContent = "No file selected";
     document.getElementById("csv-file-meta").textContent = "0 rows";
+    document.getElementById("bulk-status-text").textContent = "Upload a CSV file or click Load Sample CSV.";
     setStepper(1);
     renderBulkView();
     renderDashboard();
   });
 
   document.getElementById("run-bulk-btn").addEventListener("click", () => {
-    if (state.rawCsvRecords.length) runBulkPrediction(state.rawCsvRecords, document.getElementById("csv-file-name").textContent);
-    else renderBulkView();
+    if (state.rawCsvRecords.length) {
+      runBulkPrediction(state.rawCsvRecords, document.getElementById("csv-file-name").textContent);
+    } else {
+      showToast("Upload a CSV file or click Load Sample CSV first.", "info");
+    }
   });
 
   document.getElementById("export-bulk-btn").addEventListener("click", () => {
@@ -1394,7 +1518,7 @@ async function init() {
     if (mode === "selected") targets = state.applicants.filter((a) => state.bulkSelectedIds.has(a.customer_id));
     else if (mode === "default") targets = state.applicants.filter((a) => a.flagged || a.risk_classification === "HIGH");
     else targets = state.applicants.filter((a) => !(a.flagged || a.risk_classification === "HIGH"));
-    sendBatchEmails(targets, "application_submitted", "bulk-email-feedback");
+    sendBatchEmails(targets, mode === "default" ? "credit_limit_adjustment" : "application_submitted", "bulk-email-feedback");
   });
 
   // Directory filters
@@ -1488,8 +1612,9 @@ async function init() {
   renderDashboard();
   renderBulkView();
   if (state.applicants[0]) {
-    document.getElementById("single-id-input").value = state.applicants[0].customer_id;
-    loadSingleById(state.applicants[0].customer_id);
+    const initialKey = state.applicants[0].email || state.applicants[0].customer_id;
+    document.getElementById("single-id-input").value = initialKey;
+    loadSingleById(initialKey);
   }
   loadReports();
 }

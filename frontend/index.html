@@ -174,7 +174,7 @@
                 </button>
                 <button class="quick-card" data-goto="emails">
                   <div class="quick-title">Automated Emails</div>
-                  <div class="quick-desc">Templates &amp; SMTP collections.</div>
+                  <div class="quick-desc">Abhaya workflow notices &amp; SMTP delivery.</div>
                 </button>
                 <button class="quick-card" data-goto="reports">
                   <div class="quick-title">Cost &amp; PR Reports</div>
@@ -205,12 +205,13 @@
         <section class="view" id="view-single">
           <div class="card search-bar-card">
             <div class="search-bar-row">
-              <label class="inline-label" for="single-id-input">Applicant ID</label>
-              <input type="text" id="single-id-input" class="input" value="101" placeholder="e.g. 101 or CUST-0001">
+              <label class="inline-label" for="single-id-input">Applicant Email</label>
+              <input type="email" id="single-id-input" class="input" placeholder="e.g. marcus.vance@example.com">
               <button class="btn gold" id="fetch-single-btn">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
                 Fetch Details
               </button>
+              <button class="btn outline" id="single-send-email-btn" title="Send risk/payment email to this applicant">Send Email</button>
               <span class="hint">Examples:
                 <button class="link-btn" data-sample-kind="low">Low Risk</button> ·
                 <button class="link-btn" data-sample-kind="medium">Medium Risk</button> ·
@@ -250,12 +251,11 @@
             <div class="card">
               <div class="card-title-icon">Applicant Details</div>
               <div class="kv-list" id="single-details-kv">
-                <div class="kv-row"><span>Applicant ID</span><strong id="sd-id">--</strong></div>
+                <div class="kv-row"><span>Email</span><strong id="sd-email">--</strong></div>
                 <div class="kv-row"><span>Name</span><strong id="sd-name">--</strong></div>
                 <div class="kv-row"><span>Age</span><strong id="sd-age">--</strong></div>
                 <div class="kv-row"><span>Education</span><strong id="sd-edu">--</strong></div>
                 <div class="kv-row"><span>Credit Limit</span><strong id="sd-limit">--</strong></div>
-                <div class="kv-row"><span>Email</span><strong id="sd-email">--</strong></div>
               </div>
             </div>
 
@@ -427,7 +427,7 @@
                 <select id="bulk-model-select" class="input">
                   <option value="xgboost">Credit Default (XGBoost)</option>
                 </select>
-                <button class="btn gold" id="run-bulk-btn">Run Prediction</button>
+                <button class="btn gold" id="run-bulk-btn">&#9654; Start Prediction</button>
                 <button class="btn outline" id="export-bulk-btn" title="Download scored CSV">Export CSV</button>
               </div>
               <div class="hint" id="bulk-status-text">Ready to score uploaded CSV rows via /api/predict/batch.</div>
@@ -547,7 +547,7 @@
           <div class="card bottom-action-bar">
             <div>
               <div class="bar-title">Automated Email Reminder</div>
-              <div class="hint">Send payment reminders to selected applicants with their due amount and due date.</div>
+              <div class="hint">Dispatch automated Abhaya application status notifications to selected applicants (sensitive financial figures are omitted).</div>
             </div>
             <div class="radio-group">
               <label class="radio-pill"><input type="radio" name="bulk-email-target" value="selected" checked> <span id="bulk-target-selected">Selected Applicants (0)</span></label>
@@ -621,7 +621,8 @@
               <div class="preview-panel">
                 <div class="card-title-icon">Email Preview</div>
                 <select id="email-template-select" class="input" aria-label="Select email template">
-                  <option value="application_submitted">Payment / Application Reminder</option>
+                  <option value="credit_limit_adjustment">Credit Limit Reduction Notice (Low Score)</option>
+                  <option value="application_submitted">Application Received Confirmation</option>
                   <option value="missing_documents">Missing Documents Request</option>
                   <option value="status_change">Status Change Update</option>
                   <option value="final_decision">Final Decision Notice</option>

@@ -167,86 +167,83 @@ def predict_batch_endpoint(payload: PredictBatchRequest):
     threshold = payload.threshold or config.DEFAULT_THRESHOLD
     table_predicted_default: List[Dict[str, Any]] = []
     table_predicted_non_default: List[Dict[str, Any]] = []
-    skipped_count = 0
-    errors: List[str] = []
+
+    probs, errors, imputed_count = prediction.predict_batch_probabilities(
+        payload.records, model_name=config.PRIMARY_MODEL_NAME
+    )
+    skipped_count = sum(1 for p in probs if p is None)
 
     for idx, rec in enumerate(payload.records):
+        prob = probs[idx]
+        if prob is None:
+            continue
+
         cust_id = rec.get("customer_id", rec.get("record_id", rec.get("id", f"CUST-{idx+1:04d}")))
         cust_name = rec.get("customer_name", rec.get("name", f"Applicant #{idx+1}"))
         email = rec.get("email", rec.get("email_address", ""))
         app_id = rec.get("application_id", rec.get("app_id", f"APP-{idx+1001}"))
 
-        try:
-            pred_res = prediction.predict_probability(rec, model_name=config.PRIMARY_MODEL_NAME)
-            prob = pred_res["default_probability"]
-            dec_res = decision.make_decision(prob, threshold=threshold)
+        dec_res = decision.make_decision(prob, threshold=threshold)
+        has_valid_email = bool(email and "@" in email and "." in email)
+        email_status = "ELIGIBLE" if has_valid_email else "NO_EMAIL"
 
-            # Determine email eligibility
-            has_valid_email = bool(email and "@" in email and "." in email)
-            email_status = "ELIGIBLE" if has_valid_email else "NO_EMAIL"
+        item = {
+            "customer_id": str(cust_id),
+            "customer_name": str(cust_name),
+            "email": str(email),
+            "application_id": str(app_id),
+            "default_probability": prob,
+            "risk_classification": dec_res["risk_classification"],
+            "suggested_action": dec_res["suggested_action"],
+            "review_recommendation": dec_res["review_recommendation"],
+            "email_status": email_status,
+            "flagged": dec_res["flagged"],
+            "features_summary": {
+                "limit_bal": rec.get("LIMIT_BAL"),
+                "age": rec.get("AGE"),
+                "sex": rec.get("SEX"),
+                "education": rec.get("EDUCATION"),
+                "marriage": rec.get("MARRIAGE"),
+                "pay_0": rec.get("PAY_0"),
+                "due_date": rec.get("due_date"),
+                "due_amount": rec.get("due_amount"),
+                "bills": [
+                    rec.get("BILL_AMT1", 0),
+                    rec.get("BILL_AMT2", 0),
+                    rec.get("BILL_AMT3", 0),
+                    rec.get("BILL_AMT4", 0),
+                    rec.get("BILL_AMT5", 0),
+                    rec.get("BILL_AMT6", 0),
+                ],
+                "payments": [
+                    rec.get("PAY_AMT1", 0),
+                    rec.get("PAY_AMT2", 0),
+                    rec.get("PAY_AMT3", 0),
+                    rec.get("PAY_AMT4", 0),
+                    rec.get("PAY_AMT5", 0),
+                    rec.get("PAY_AMT6", 0),
+                ],
+                "pay_statuses": [
+                    rec.get("PAY_0", 0),
+                    rec.get("PAY_2", 0),
+                    rec.get("PAY_3", 0),
+                    rec.get("PAY_4", 0),
+                    rec.get("PAY_5", 0),
+                    rec.get("PAY_6", 0),
+                ],
+            },
+        }
 
-            item = {
-                "customer_id": str(cust_id),
-                "customer_name": str(cust_name),
-                "email": str(email),
-                "application_id": str(app_id),
-                "default_probability": prob,
-                "risk_classification": dec_res["risk_classification"],
-                "suggested_action": dec_res["suggested_action"],
-                "review_recommendation": dec_res["review_recommendation"],
-                "email_status": email_status,
-                "flagged": dec_res["flagged"],
-                "features_summary": {
-                    "limit_bal": rec.get("LIMIT_BAL"),
-                    "age": rec.get("AGE"),
-                    "sex": rec.get("SEX"),
-                    "education": rec.get("EDUCATION"),
-                    "marriage": rec.get("MARRIAGE"),
-                    "pay_0": rec.get("PAY_0"),
-                    "due_date": rec.get("due_date"),
-                    "due_amount": rec.get("due_amount"),
-                    "bills": [
-                        rec.get("BILL_AMT1", 0),
-                        rec.get("BILL_AMT2", 0),
-                        rec.get("BILL_AMT3", 0),
-                        rec.get("BILL_AMT4", 0),
-                        rec.get("BILL_AMT5", 0),
-                        rec.get("BILL_AMT6", 0),
-                    ],
-                    "payments": [
-                        rec.get("PAY_AMT1", 0),
-                        rec.get("PAY_AMT2", 0),
-                        rec.get("PAY_AMT3", 0),
-                        rec.get("PAY_AMT4", 0),
-                        rec.get("PAY_AMT5", 0),
-                        rec.get("PAY_AMT6", 0),
-                    ],
-                    "pay_statuses": [
-                        rec.get("PAY_0", 0),
-                        rec.get("PAY_2", 0),
-                        rec.get("PAY_3", 0),
-                        rec.get("PAY_4", 0),
-                        rec.get("PAY_5", 0),
-                        rec.get("PAY_6", 0),
-                    ],
-                }
-            }
-
-            if dec_res["flagged"] or prob >= threshold:
-                table_predicted_default.append(item)
-            else:
-                table_predicted_non_default.append(item)
-
-        except Exception as e:
-            skipped_count += 1
-            if len(errors) < 5:
-                errors.append(f"Row {idx + 1}: {e}")
-            continue
+        if dec_res["flagged"] or prob >= threshold:
+            table_predicted_default.append(item)
+        else:
+            table_predicted_non_default.append(item)
 
     return {
         "threshold": threshold,
         "total_processed": len(payload.records),
         "skipped_count": skipped_count,
+        "imputed_count": imputed_count,
         "errors": errors,
         "predicted_default_count": len(table_predicted_default),
         "predicted_non_default_count": len(table_predicted_non_default),

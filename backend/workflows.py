@@ -34,6 +34,7 @@ ALLOWED_UI_EVENTS = {
     "status_change",
     "final_decision",
     "high_risk_review",
+    "credit_limit_adjustment",
 }
 
 
@@ -448,7 +449,7 @@ def send_template_notification(
             target_email = os.getenv("EMPLOYEE_REVIEW_EMAIL", config.EMPLOYEE_REVIEW_EMAIL).strip()
     else:
         # Customers can never send emails to arbitrary addresses or trigger internal alerts
-        if req.event_type in {"missing_documents", "status_change", "final_decision", "high_risk_review"}:
+        if req.event_type in {"missing_documents", "status_change", "final_decision", "high_risk_review", "credit_limit_adjustment"}:
             raise HTTPException(status_code=403, detail="Only employees can send this notification type.")
         target_email = caller_email
 

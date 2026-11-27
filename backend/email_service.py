@@ -58,14 +58,14 @@ def _wrap_html(title: str, body_html: str) -> str:
 <body style="font-family:Segoe UI,Arial,sans-serif;background:#f4f6f9;margin:0;padding:24px;color:#1f2933;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dde3ea;border-radius:8px;overflow:hidden;">
     <div style="background:#2b5fa5;color:#ffffff;padding:18px 24px;">
-      <h2 style="margin:0;font-size:18px;">CreditRisk-X</h2>
+      <h2 style="margin:0;font-size:18px;letter-spacing:0.2px;">Abhaya</h2>
       <div style="font-size:13px;opacity:0.9;margin-top:4px;">{safe_title}</div>
     </div>
     <div style="padding:22px 24px;line-height:1.55;font-size:14px;">
       {body_html}
       <hr style="border:none;border-top:1px solid #e6eaf0;margin:20px 0;">
       <p style="font-size:12px;color:#6b7785;margin:0;">
-        This is an automated message from CreditRisk-X. Please do not reply with sensitive personal or financial details.
+        Abhaya Risk &amp; Collections · Automated Notification. Please do not reply to this message with sensitive personal or financial details.
       </p>
     </div>
   </div>
@@ -85,32 +85,34 @@ def render_template(event_type: str, context: Dict[str, Any]) -> Tuple[str, str,
     raw_app_id = str(context.get("application_id") or "N/A")
 
     if event_type == "registration":
-        subject = "Welcome to CreditRisk-X"
+        subject = "Welcome to Abhaya — Account Registration Confirmed"
         text = (
-            f"Hello {raw_name},\n\n"
-            "Welcome to CreditRisk-X! Your customer account has been created.\n"
-            "You can now sign in to submit credit applications and track updates.\n\n"
-            "Regards,\nCreditRisk-X Team"
+            f"Dear {raw_name},\n\n"
+            "Welcome to Abhaya. Your customer account has been successfully created.\n\n"
+            "You may now sign in to the Abhaya portal to submit credit applications and track their review status.\n\n"
+            "Sincerely,\nAbhaya Risk & Collections Team"
         )
         body = (
-            f"<p>Hello <strong>{name}</strong>,</p>"
-            "<p>Welcome to <strong>CreditRisk-X</strong>! Your customer account has been created.</p>"
-            "<p>You can now sign in to submit credit applications and track status updates.</p>"
+            f"<p>Dear <strong>{name}</strong>,</p>"
+            "<p>Welcome to <strong>Abhaya</strong>. Your customer account has been successfully created.</p>"
+            "<p>You may now sign in to the Abhaya portal to submit credit applications and track their review status.</p>"
+            "<p style=\"margin-top:16px;\">Sincerely,<br><strong>Abhaya Risk &amp; Collections Team</strong></p>"
         )
         return subject, text, _wrap_html("Account Registration", body)
 
     if event_type == "application_submitted":
-        subject = f"Application Received ({raw_app_id})"
+        subject = f"Application Received — Reference {raw_app_id}"
         text = (
-            f"Hello {raw_name},\n\n"
-            f"We have received your credit application ({raw_app_id}).\n"
-            "Our team is reviewing your submission and will notify you of any updates.\n\n"
-            "Regards,\nCreditRisk-X Team"
+            f"Dear {raw_name},\n\n"
+            f"Thank you for submitting your credit application (Reference: {raw_app_id}) with Abhaya.\n\n"
+            "Our underwriting and risk review team has received your submission and will notify you promptly as your application progresses.\n\n"
+            "Sincerely,\nAbhaya Risk & Collections Team"
         )
         body = (
-            f"<p>Hello <strong>{name}</strong>,</p>"
-            f"<p>We have received your credit application (<strong>{app_id}</strong>).</p>"
-            "<p>Our team is reviewing your submission and will notify you when its status changes.</p>"
+            f"<p>Dear <strong>{name}</strong>,</p>"
+            f"<p>Thank you for submitting your credit application (Reference: <strong>{app_id}</strong>) with Abhaya.</p>"
+            "<p>Our underwriting and risk review team has received your submission and will notify you promptly as your application progresses.</p>"
+            "<p style=\"margin-top:16px;\">Sincerely,<br><strong>Abhaya Risk &amp; Collections Team</strong></p>"
         )
         return subject, text, _wrap_html("Application Confirmation", body)
 
@@ -120,55 +122,58 @@ def render_template(event_type: str, context: Dict[str, Any]) -> Tuple[str, str,
             docs = ["Proof of identity", "Recent income verification"]
         doc_lines = "\n".join(f"- {d}" for d in docs)
         doc_html = "".join(f"<li>{html.escape(d)}</li>" for d in docs)
-        subject = f"Action Required: Additional Documents Needed ({raw_app_id})"
+        subject = f"Action Required: Supporting Documents Needed ({raw_app_id})"
         text = (
-            f"Hello {raw_name},\n\n"
-            f"To continue processing application {raw_app_id}, please provide the following documents:\n"
+            f"Dear {raw_name},\n\n"
+            f"To continue processing your credit application (Reference: {raw_app_id}), please provide the following supporting documents:\n"
             f"{doc_lines}\n\n"
-            "Please upload them through your CreditRisk-X portal.\n\n"
-            "Regards,\nCreditRisk-X Team"
+            "Kindly upload the requested items through your Abhaya portal at your earliest convenience.\n\n"
+            "Sincerely,\nAbhaya Risk & Collections Team"
         )
         body = (
-            f"<p>Hello <strong>{name}</strong>,</p>"
-            f"<p>To continue processing application <strong>{app_id}</strong>, please provide:</p>"
+            f"<p>Dear <strong>{name}</strong>,</p>"
+            f"<p>To continue processing your credit application (Reference: <strong>{app_id}</strong>), please provide the following supporting documents:</p>"
             f"<ul>{doc_html}</ul>"
-            "<p>Please submit these documents through your CreditRisk-X portal.</p>"
+            "<p>Kindly upload the requested items through your Abhaya portal at your earliest convenience.</p>"
+            "<p style=\"margin-top:16px;\">Sincerely,<br><strong>Abhaya Risk &amp; Collections Team</strong></p>"
         )
-        return subject, text, _wrap_html("Document Request", body)
+        return subject, text, _wrap_html("Documentation Request", body)
 
     if event_type == "status_change":
         new_status = str(context.get("status") or "UPDATED")
         safe_status = html.escape(new_status)
         subject = f"Application Status Update ({raw_app_id}): {new_status}"
         text = (
-            f"Hello {raw_name},\n\n"
-            f"The status of your application ({raw_app_id}) has been updated to: {new_status}.\n"
-            "Sign in to your account for next steps.\n\n"
-            "Regards,\nCreditRisk-X Team"
+            f"Dear {raw_name},\n\n"
+            f"The status of your credit application (Reference: {raw_app_id}) has been updated to: {new_status}.\n\n"
+            "Please sign in to your Abhaya portal to review the latest details and any next steps.\n\n"
+            "Sincerely,\nAbhaya Risk & Collections Team"
         )
         body = (
-            f"<p>Hello <strong>{name}</strong>,</p>"
-            f"<p>The status of your application (<strong>{app_id}</strong>) has been updated to: "
+            f"<p>Dear <strong>{name}</strong>,</p>"
+            f"<p>The status of your credit application (Reference: <strong>{app_id}</strong>) has been updated to: "
             f"<strong>{safe_status}</strong>.</p>"
-            "<p>Please sign in to your account to view next steps.</p>"
+            "<p>Please sign in to your Abhaya portal to review the latest details and any next steps.</p>"
+            "<p style=\"margin-top:16px;\">Sincerely,<br><strong>Abhaya Risk &amp; Collections Team</strong></p>"
         )
         return subject, text, _wrap_html("Application Status Update", body)
 
     if event_type == "final_decision":
         decision_val = str(context.get("decision") or "REVIEWED")
         safe_decision = html.escape(decision_val)
-        subject = f"Final Decision for Application {raw_app_id}: {decision_val}"
+        subject = f"Final Decision Notice — Application {raw_app_id}: {decision_val}"
         text = (
-            f"Hello {raw_name},\n\n"
-            f"A final decision has been recorded for your application ({raw_app_id}): {decision_val}.\n"
-            "Please log in to your CreditRisk-X portal for full details.\n\n"
-            "Regards,\nCreditRisk-X Team"
+            f"Dear {raw_name},\n\n"
+            f"A final decision has been recorded for your credit application (Reference: {raw_app_id}): {decision_val}.\n\n"
+            "Please sign in to your Abhaya portal to view the complete decision summary.\n\n"
+            "Sincerely,\nAbhaya Risk & Collections Team"
         )
         body = (
-            f"<p>Hello <strong>{name}</strong>,</p>"
-            f"<p>A final decision has been recorded for application <strong>{app_id}</strong>: "
+            f"<p>Dear <strong>{name}</strong>,</p>"
+            f"<p>A final decision has been recorded for your credit application (Reference: <strong>{app_id}</strong>): "
             f"<strong>{safe_decision}</strong>.</p>"
-            "<p>Please log in to your CreditRisk-X portal for full details.</p>"
+            "<p>Please sign in to your Abhaya portal to view the complete decision summary.</p>"
+            "<p style=\"margin-top:16px;\">Sincerely,<br><strong>Abhaya Risk &amp; Collections Team</strong></p>"
         )
         return subject, text, _wrap_html("Final Application Decision", body)
 
@@ -177,18 +182,41 @@ def render_template(event_type: str, context: Dict[str, Any]) -> Tuple[str, str,
         safe_band = html.escape(risk_band)
         subject = f"[Review Required] High-Risk Application {raw_app_id}"
         text = (
-            "Hello Risk Review Team,\n\n"
-            f"Application {raw_app_id} has been flagged as {risk_band} risk and requires employee review.\n"
-            "Please open the internal review queue to inspect the application.\n\n"
-            "CreditRisk-X Automated Alert"
+            "Dear Risk Review Team,\n\n"
+            f"Application {raw_app_id} has been classified as {risk_band} risk and requires manual underwriting review.\n\n"
+            "Please open the Abhaya internal review queue to inspect the application and record your assessment.\n\n"
+            "Sincerely,\nAbhaya Risk & Collections Team"
         )
         body = (
-            "<p>Hello <strong>Risk Review Team</strong>,</p>"
-            f"<p>Application <strong>{app_id}</strong> has been flagged as <strong>{safe_band}</strong> risk "
-            "and requires manual employee review.</p>"
-            "<p>Please open the internal review queue to inspect this application.</p>"
+            "<p>Dear <strong>Risk Review Team</strong>,</p>"
+            f"<p>Application <strong>{app_id}</strong> has been classified as <strong>{safe_band}</strong> risk "
+            "and requires manual underwriting review.</p>"
+            "<p>Please open the Abhaya internal review queue to inspect the application and record your assessment.</p>"
+            "<p style=\"margin-top:16px;\">Sincerely,<br><strong>Abhaya Risk &amp; Collections Team</strong></p>"
         )
-        return subject, text, _wrap_html("High-Risk Employee Review Alert", body)
+        return subject, text, _wrap_html("Internal Risk Review Alert", body)
+
+    if event_type == "credit_limit_adjustment":
+        subject = f"Important Account Notice: Credit Limit Adjustment ({raw_app_id})"
+        text = (
+            f"Dear {raw_name},\n\n"
+            f"Following a recent review of your account ({raw_app_id}), we noticed that your credit score is currently below our standard benchmark. "
+            "To help keep your monthly repayments manageable and protect your account standing, we are temporarily decreasing your credit limit.\n\n"
+            "We encourage you to work toward increasing your credit score by making consistent, on-time payments and keeping your credit utilization low. "
+            "As your credit score improves, your account will be eligible for a credit limit review in future cycles.\n\n"
+            "Thank you for banking with us.\n\n"
+            "Regards,\nAbhaya Risk & Collections Team"
+        )
+        body = (
+            f"<p>Dear <strong>{name}</strong>,</p>"
+            f"<p>Following a recent review of your account (<strong>{app_id}</strong>), we noted that your credit score is currently below our standard benchmark.</p>"
+            "<p>To help keep your monthly obligations manageable and safeguard your financial standing, we are <strong>temporarily decreasing your credit limit</strong>.</p>"
+            "<p>We encourage you to improve your credit score by making consistent, on-time payments and maintaining lower credit utilization. "
+            "Once your score strengthens, your account will be eligible for a future limit review.</p>"
+            "<p>Thank you for your continued trust.</p>"
+            "<p>Regards,<br><strong>Abhaya Risk &amp; Collections Team</strong></p>"
+        )
+        return subject, text, _wrap_html("Credit Limit Adjustment Notice", body)
 
     raise ValueError(f"Unsupported email event type: {event_type}")
 
